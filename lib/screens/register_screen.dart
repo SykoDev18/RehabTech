@@ -1,0 +1,293 @@
+
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
+  String _userType = 'patient';
+  bool _agreedToTerms = false;
+
+  Future<void> _createAccount() async {
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match')),
+      );
+      return;
+    }
+
+    if (!_agreedToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must agree to the terms and conditions')),
+      );
+      return;
+    }
+
+    try {
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'name': _nameController.text,
+        'email': _emailController.text,
+        'userType': _userType,
+      });
+
+      Navigator.of(context).pop();
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Failed to create account')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F4F8),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Crear Cuenta',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildUserTypeSelector(),
+            const SizedBox(height: 24),
+            _buildTextField(controller: _nameController, hintText: 'Nombre', exampleText: 'Ej. Marco Antonio'),
+            const SizedBox(height: 16),
+            _buildTextField(controller: _emailController, hintText: 'Correo', exampleText: 'Ej. tu@email.com'),
+            const SizedBox(height: 16),
+            _buildTextField(controller: _passwordController, hintText: 'Contraseña', isPassword: true),
+            const SizedBox(height: 16),
+            _buildTextField(controller: _confirmPasswordController, hintText: 'Confirmar', isPassword: true),
+            const SizedBox(height: 24),
+            _buildTermsAndConditions(),
+            const SizedBox(height: 24),
+            _buildGradientButton('Crear Cuenta', _createAccount),
+            const SizedBox(height: 24),
+            _buildSeparator(),
+            const SizedBox(height: 24),
+            _buildSocialButton(
+              text: 'Continuar con Apple',
+              imagePath: 'assets/apple_logo.png',
+              backgroundColor: Colors.black,
+              textColor: Colors.white,
+            ),
+            const SizedBox(height: 12),
+            _buildSocialButton(
+              text: 'Continuar con Google',
+              imagePath: 'assets/google_logo.png',
+              backgroundColor: Colors.white,
+              textColor: Colors.black,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserTypeSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          _buildUserTypeButton('Soy Paciente', 'patient'),
+          _buildUserTypeButton('Soy Terapeuta', 'therapist'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserTypeButton(String text, String type) {
+    final isSelected = _userType == type;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _userType = type),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: isSelected
+              ? BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                )
+              : null,
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: Colors.black,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({required TextEditingController controller, required String hintText, bool isPassword = false, String? exampleText}) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword,
+      decoration: InputDecoration(
+        labelText: hintText,
+        hintText: exampleText,
+        hintStyle: TextStyle(color: Colors.grey[400]),
+        labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        suffixText: isPassword ? '•••••••' : null,
+        suffixStyle: TextStyle(color: Colors.grey[400]),
+      ),
+    );
+  }
+
+  Widget _buildTermsAndConditions() {
+    return Row(
+      children: [
+        Checkbox(
+          value: _agreedToTerms,
+          onChanged: (value) => setState(() => _agreedToTerms = value!),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        ),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: TextStyle(color: Colors.grey[600]),
+              children: [
+                const TextSpan(text: 'Acepto los '),
+                TextSpan(
+                  text: 'Términos y Condiciones',
+                  style: const TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.bold),
+                  recognizer: TapGestureRecognizer()..onTap = () { /* Handle tap */ },
+                ),
+                const TextSpan(text: ' y la '),
+                TextSpan(
+                  text: 'Política de Privacidad',
+                  style: const TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.bold),
+                  recognizer: TapGestureRecognizer()..onTap = () { /* Handle tap */ },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  Widget _buildGradientButton(String text, VoidCallback onPressed) {
+    return Container(
+      height: 50,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1E88E5), Color(0xFF26C6DA)],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          )
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(
+              color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+  Widget _buildSeparator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Expanded(child: Container(height: 1, color: Colors.grey.shade300)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          child: Text('o regístrate con', style: TextStyle(color: Colors.grey.shade500)),
+        ),
+        Expanded(child: Container(height: 1, color: Colors.grey.shade300)),
+      ],
+    );
+  }
+
+  Widget _buildSocialButton({required String text, required String imagePath, required Color backgroundColor, required Color textColor, VoidCallback? onPressed}) {
+    return ElevatedButton(
+      onPressed: onPressed ?? () {},
+      style: ElevatedButton.styleFrom(
+        backgroundColor: backgroundColor,
+        minimumSize: const Size(double.infinity, 50),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.2),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(imagePath, height: 20, color: imagePath.contains('apple') ? Colors.white : null),
+          const SizedBox(width: 12),
+          Text(
+            text,
+            style: TextStyle(
+                color: textColor, fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
