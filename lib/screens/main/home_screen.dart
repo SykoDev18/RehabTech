@@ -1,9 +1,12 @@
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback onProfileTapped;
+
+  const HomeScreen({super.key, required this.onProfileTapped});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -22,6 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildRoutineCard(),
           const SizedBox(height: 24),
           _buildProgressCard(),
+          const SizedBox(height: 24),
+          _buildNextExercisesCard(),
         ],
       ),
     );
@@ -47,11 +52,32 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          IconButton(
-            icon: const Icon(Icons.star, color: Color(0xFF2563EB), size: 30),
-            onPressed: () {
-              Navigator.pushNamed(context, '/ai_chat');
-            },
+          Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(LucideIcons.sparkles, color: Color(0xFF2563EB), size: 28),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/ai_chat');
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF2563EB),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(LucideIcons.user, color: Colors.white, size: 28),
+                  onPressed: widget.onProfileTapped,
+                ),
+              ),
+            ],
           )
         ],
       ),
@@ -187,6 +213,71 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('Tiempo Activo', style: TextStyle(color: Color(0xFF4B5563), fontSize: 16)),
           ],
         ),
+      ],
+    );
+  }
+
+  Widget _buildNextExercisesCard() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20.0),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
+        child: Container(
+          padding: const EdgeInsets.all(24.0),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.40),
+            borderRadius: BorderRadius.circular(20.0),
+            border: Border.all(color: Colors.white.withOpacity(0.60)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Próximos Ejercicios',
+                style: TextStyle(color: Color(0xFF111827), fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _buildExerciseRow(LucideIcons.dumbbell, 'Movilidad de Hombro', '15 min', Colors.purple.shade300),
+              const SizedBox(height: 12),
+              _buildExerciseRow(LucideIcons.heart, 'Ejercicios Cardiovasculares', '20 min', Colors.red.shade300),
+              const SizedBox(height: 12),
+              _buildExerciseRow(LucideIcons.footprints, 'Equilibrio y Coordinación', '12 min', Colors.green.shade300),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExerciseRow(IconData icon, String title, String duration, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 28),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(color: Color(0xFF111827), fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(LucideIcons.clock, color: Color(0xFF4B5563), size: 16),
+                  const SizedBox(width: 4),
+                  Text(duration, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const Icon(Icons.chevron_right, color: Color(0xFF4B5563)),
       ],
     );
   }

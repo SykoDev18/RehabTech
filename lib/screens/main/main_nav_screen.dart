@@ -15,13 +15,18 @@ class MainNavScreen extends StatefulWidget {
 
 class _MainNavScreenState extends State<MainNavScreen> {
   int _selectedIndex = 0;
+  late final List<Widget> _widgetOptions;
 
-  static const List<Widget> _widgetOptions = <Widget>[
-    HomeScreen(),
-    ExercisesScreen(),
-    ProgressScreen(),
-    ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _widgetOptions = <Widget>[
+      HomeScreen(onProfileTapped: () => _onItemTapped(3)),
+      const ExercisesScreen(),
+      const ProgressScreen(),
+      const ProfileScreen(),
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {
