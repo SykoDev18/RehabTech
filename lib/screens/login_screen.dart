@@ -25,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
-      // Navigate to home screen or dashboard
+      Navigator.pushReplacementNamed(context, '/main');
     } on FirebaseAuthException catch (e) {
       // Handle error
       ScaffoldMessenger.of(context).showSnackBar(

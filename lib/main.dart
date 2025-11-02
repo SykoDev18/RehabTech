@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:myapp/screens/login_screen.dart';
+import 'package:myapp/screens/main/main_nav_screen.dart';
+import 'package:myapp/screens/main/ai_chat_screen.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -27,6 +29,10 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: const LoginScreen(),
+      routes: {
+        '/main': (context) => const MainNavScreen(),
+        '/ai_chat': (context) => const AiChatScreen(),
+      },
     );
   }
 }
