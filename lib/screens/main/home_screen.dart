@@ -1,7 +1,7 @@
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onProfileTapped;
@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  icon: const Icon(LucideIcons.sparkles, color: Color(0xFF2563EB), size: 28),
+                  icon: SvgPicture.asset('assets/sparkles.svg', color: const Color(0xFF2563EB), width: 28, height: 28),
                   onPressed: () {
                     Navigator.pushNamed(context, '/ai_chat');
                   },
@@ -73,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  icon: const Icon(LucideIcons.user, color: Colors.white, size: 28),
+                  icon: SvgPicture.asset('assets/user.svg', color: Colors.white, width: 28, height: 28),
                   onPressed: widget.onProfileTapped,
                 ),
               ),
@@ -103,8 +103,22 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 4),
               const Text('Fortalecimiento de Rodilla', style: TextStyle(color: Color(0xFF4B5563), fontSize: 16)),
               const SizedBox(height: 16),
-              // Aquí va la barra de progreso
-              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0E7FF), // indigo-100
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SvgPicture.asset('assets/clock.svg', color: const Color(0xFF4338CA), width: 16, height: 16), // indigo-700
+                    const SizedBox(width: 6),
+                    const Text('25 minutos', style: TextStyle(color: Color(0xFF4338CA), fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               InkWell(
                 onTap: () {},
                 child: Container(
@@ -118,10 +132,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     borderRadius: BorderRadius.circular(14.0),
                   ),
-                  child: const Center(
-                    child: Text(
-                      'Comenzar Rutina',
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SvgPicture.asset('assets/play.svg', color: Colors.white, width: 20, height: 20),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Comenzar Rutina',
+                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -145,11 +166,21 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(20.0),
             border: Border.all(color: Colors.white.withOpacity(0.60)),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildProgressCircle(),
-              const SizedBox(width: 20),
-              _buildProgressDetails(),
+              const Text(
+                'Progreso Diario',
+                style: TextStyle(color: Color(0xFF111827), fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildProgressCircle(),
+                  const SizedBox(width: 24),
+                  _buildProgressDetails(),
+                ],
+              ),
             ],
           ),
         ),
@@ -166,11 +197,11 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           CircularProgressIndicator(
             value: 0.75,
-            strokeWidth: 8,
-            backgroundColor: Colors.grey.shade300,
+            strokeWidth: 10,
+            backgroundColor: Colors.grey.shade200,
             valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
           ),
-          Center(
+           Center(
             child: Text(
               '75%',
               style: TextStyle(
@@ -185,38 +216,57 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-   Widget _buildProgressDetails() {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Progreso Diario',
-          style: TextStyle(color: Color(0xFF111827), fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 12),
-        Row(
-          children: [
-            Icon(Icons.local_fire_department, color: Colors.orange, size: 20),
-            SizedBox(width: 8),
-            Text('3/4', style: TextStyle(color: Color(0xFF111827), fontSize: 18)),
-            SizedBox(width: 8),
-            Text('Ejercicios Completados', style: TextStyle(color: Color(0xFF4B5563), fontSize: 16)),
-          ],
-        ),
-        SizedBox(height: 8),
-        Row(
-          children: [
-            Icon(Icons.timer, color: Colors.lightBlueAccent, size: 20),
-            SizedBox(width: 8),
-            Text('18 min', style: TextStyle(color: Color(0xFF111827), fontSize: 18)),
-            SizedBox(width: 8),
-            Text('Tiempo Activo', style: TextStyle(color: Color(0xFF4B5563), fontSize: 16)),
-          ],
-        ),
-      ],
+  Widget _buildProgressDetails() {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEDD5), // orange-100
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: SvgPicture.asset('assets/flame.svg', color: const Color(0xFFEA580C), width: 20, height: 20), // orange-600
+              ),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('3/4', style: TextStyle(color: Color(0xFF111827), fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Ejercicios', style: TextStyle(color: Color(0xFF4B5563), fontSize: 14)),
+                ],
+              )
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDBEAFE), // blue-100
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: SvgPicture.asset('assets/clock.svg', color: const Color(0xFF2563EB), width: 20, height: 20), // blue-600
+              ),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('18 min', style: TextStyle(color: Color(0xFF111827), fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Tiempo Activo', style: TextStyle(color: Color(0xFF4B5563), fontSize: 14)),
+                ],
+              )
+            ],
+          ),
+        ],
+      ),
     );
   }
-
+  
   Widget _buildNextExercisesCard() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20.0),
@@ -237,11 +287,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(color: Color(0xFF111827), fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              _buildExerciseRow(LucideIcons.dumbbell, 'Movilidad de Hombro', '15 min', Colors.purple.shade300),
+              _buildExerciseRow('assets/dumbbell.svg', 'Movilidad de Hombro', '15 min', const Color(0xFF9333EA)), // purple-600
               const SizedBox(height: 12),
-              _buildExerciseRow(LucideIcons.heart, 'Ejercicios Cardiovasculares', '20 min', Colors.red.shade300),
+              _buildExerciseRow('assets/heart.svg', 'Ejercicios Cardiovasculares', '20 min', const Color(0xFFE11D48)), // red-600
               const SizedBox(height: 12),
-              _buildExerciseRow(LucideIcons.footprints, 'Equilibrio y Coordinación', '12 min', Colors.green.shade300),
+              _buildExerciseRow('assets/footprints.svg', 'Equilibrio y Coordinación', '12 min', const Color(0xFF16A34A)), // green-600
             ],
           ),
         ),
@@ -249,16 +299,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildExerciseRow(IconData icon, String title, String duration, Color color) {
+  Widget _buildExerciseRow(String iconPath, String title, String duration, Color color) {
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withOpacity(0.15),
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: color, size: 28),
+          child: SvgPicture.asset(iconPath, color: color, width: 28, height: 28),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -269,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(LucideIcons.clock, color: Color(0xFF4B5563), size: 16),
+                  SvgPicture.asset('assets/clock.svg', color: const Color(0xFF4B5563), width: 16, height: 16),
                   const SizedBox(width: 4),
                   Text(duration, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14)),
                 ],
@@ -277,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        const Icon(Icons.chevron_right, color: Color(0xFF4B5563)),
+        SvgPicture.asset('assets/chevron-right.svg', color: const Color(0xFF9CA3AF), width: 24, height: 24), // gray-400
       ],
     );
   }

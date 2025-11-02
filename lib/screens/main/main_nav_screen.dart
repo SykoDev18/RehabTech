@@ -1,6 +1,7 @@
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:myapp/screens/main/home_screen.dart';
 import 'package:myapp/screens/main/exercises_screen.dart';
 import 'package:myapp/screens/main/progress_screen.dart';
@@ -36,6 +37,9 @@ class _MainNavScreenState extends State<MainNavScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const Color activeColor = Color(0xFF2563EB); // blue-600
+    const Color inactiveColor = Color(0xFF4B5563); // gray-600
+
     return Scaffold(
       extendBody: true,
       body: Stack(
@@ -57,20 +61,36 @@ class _MainNavScreenState extends State<MainNavScreen> {
       ),
       bottomNavigationBar: ClipRRect(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0), // backdrop-blur-xl
+          filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
           child: BottomNavigationBar(
-            backgroundColor: Colors.white.withOpacity(0.40), // bg-white/40
+            backgroundColor: Colors.white.withOpacity(0.40),
             elevation: 0,
             type: BottomNavigationBarType.fixed,
-            selectedItemColor: const Color(0xFF2563EB), // text-blue-600
-            unselectedItemColor: const Color(0xFF4B5563), // text-gray-600
+            selectedItemColor: activeColor,
+            unselectedItemColor: inactiveColor,
             currentIndex: _selectedIndex,
             onTap: _onItemTapped,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-              BottomNavigationBarItem(icon: Icon(Icons.fitness_center), label: 'Ejercicios'),
-              BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Progreso'),
-              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+            items: [
+              BottomNavigationBarItem(
+                icon: SvgPicture.asset('assets/house.svg', color: inactiveColor),
+                activeIcon: SvgPicture.asset('assets/house.svg', color: activeColor),
+                label: 'Inicio',
+              ),
+              BottomNavigationBarItem(
+                icon: SvgPicture.asset('assets/dumbbell.svg', color: inactiveColor),
+                activeIcon: SvgPicture.asset('assets/dumbbell.svg', color: activeColor),
+                label: 'Ejercicios',
+              ),
+              BottomNavigationBarItem(
+                icon: SvgPicture.asset('assets/trending-up.svg', color: inactiveColor),
+                activeIcon: SvgPicture.asset('assets/trending-up.svg', color: activeColor),
+                label: 'Progreso',
+              ),
+              BottomNavigationBarItem(
+                icon: SvgPicture.asset('assets/user.svg', color: inactiveColor),
+                activeIcon: SvgPicture.asset('assets/user.svg', color: activeColor),
+                label: 'Perfil',
+              ),
             ],
           ),
         ),
