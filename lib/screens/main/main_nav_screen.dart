@@ -72,23 +72,23 @@ class _MainNavScreenState extends State<MainNavScreen> {
             onTap: _onItemTapped,
             items: [
               BottomNavigationBarItem(
-                icon: SvgPicture.asset('assets/house.svg', color: inactiveColor),
-                activeIcon: SvgPicture.asset('assets/house.svg', color: activeColor),
+                icon: SvgPicture.asset('assets/house.svg', colorFilter: const ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
+                activeIcon: SvgPicture.asset('assets/house.svg', colorFilter: const ColorFilter.mode(activeColor, BlendMode.srcIn)),
                 label: 'Inicio',
               ),
               BottomNavigationBarItem(
-                icon: SvgPicture.asset('assets/dumbbell.svg', color: inactiveColor),
-                activeIcon: SvgPicture.asset('assets/dumbbell.svg', color: activeColor),
+                icon: SvgPicture.asset('assets/dumbbell.svg', colorFilter: const ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
+                activeIcon: SvgPicture.asset('assets/dumbbell.svg', colorFilter: const ColorFilter.mode(activeColor, BlendMode.srcIn)),
                 label: 'Ejercicios',
               ),
               BottomNavigationBarItem(
-                icon: SvgPicture.asset('assets/trending-up.svg', color: inactiveColor),
-                activeIcon: SvgPicture.asset('assets/trending-up.svg', color: activeColor),
+                icon: SvgPicture.asset('assets/trending-up.svg', colorFilter: const ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
+                activeIcon: SvgPicture.asset('assets/trending-up.svg', colorFilter: const ColorFilter.mode(activeColor, BlendMode.srcIn)),
                 label: 'Progreso',
               ),
               BottomNavigationBarItem(
-                icon: SvgPicture.asset('assets/user.svg', color: inactiveColor),
-                activeIcon: SvgPicture.asset('assets/user.svg', color: activeColor),
+                icon: SvgPicture.asset('assets/user.svg', colorFilter: const ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
+                activeIcon: SvgPicture.asset('assets/user.svg', colorFilter: const ColorFilter.mode(activeColor, BlendMode.srcIn)),
                 label: 'Perfil',
               ),
             ],

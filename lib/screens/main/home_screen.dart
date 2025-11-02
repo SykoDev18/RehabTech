@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  icon: SvgPicture.asset('assets/sparkles.svg', color: const Color(0xFF2563EB), width: 28, height: 28),
+                  icon: SvgPicture.asset('assets/sparkles.svg', colorFilter: const ColorFilter.mode(Color(0xFF2563EB), BlendMode.srcIn), width: 28, height: 28),
                   onPressed: () {
                     Navigator.pushNamed(context, '/ai_chat');
                   },
@@ -73,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  icon: SvgPicture.asset('assets/user.svg', color: Colors.white, width: 28, height: 28),
+                  icon: SvgPicture.asset('assets/user.svg', colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn), width: 28, height: 28),
                   onPressed: widget.onProfileTapped,
                 ),
               ),
@@ -112,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SvgPicture.asset('assets/clock.svg', color: const Color(0xFF4338CA), width: 16, height: 16), // indigo-700
+                    SvgPicture.asset('assets/clock.svg', colorFilter: const ColorFilter.mode(Color(0xFF4338CA), BlendMode.srcIn), width: 16, height: 16), // indigo-700
                     const SizedBox(width: 6),
                     const Text('25 minutos', style: TextStyle(color: Color(0xFF4338CA), fontWeight: FontWeight.w600)),
                   ],
@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SvgPicture.asset('assets/play.svg', color: Colors.white, width: 20, height: 20),
+                        SvgPicture.asset('assets/play.svg', colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn), width: 20, height: 20),
                         const SizedBox(width: 8),
                         const Text(
                           'Comenzar Rutina',
@@ -229,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: const Color(0xFFFFEDD5), // orange-100
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: SvgPicture.asset('assets/flame.svg', color: const Color(0xFFEA580C), width: 20, height: 20), // orange-600
+                child: SvgPicture.asset('assets/flame.svg', colorFilter: const ColorFilter.mode(Color(0xFFEA580C), BlendMode.srcIn), width: 20, height: 20), // orange-600
               ),
               const SizedBox(width: 12),
               const Column(
@@ -250,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: const Color(0xFFDBEAFE), // blue-100
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: SvgPicture.asset('assets/clock.svg', color: const Color(0xFF2563EB), width: 20, height: 20), // blue-600
+                child: SvgPicture.asset('assets/clock.svg', colorFilter: const ColorFilter.mode(Color(0xFF2563EB), BlendMode.srcIn), width: 20, height: 20), // blue-600
               ),
               const SizedBox(width: 12),
               const Column(
@@ -308,7 +308,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color: color.withOpacity(0.15),
             shape: BoxShape.circle,
           ),
-          child: SvgPicture.asset(iconPath, color: color, width: 28, height: 28),
+          child: SvgPicture.asset(iconPath, colorFilter: ColorFilter.mode(color, BlendMode.srcIn), width: 28, height: 28),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -319,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  SvgPicture.asset('assets/clock.svg', color: const Color(0xFF4B5563), width: 16, height: 16),
+                  SvgPicture.asset('assets/clock.svg', colorFilter: const ColorFilter.mode(Color(0xFF4B5563), BlendMode.srcIn), width: 16, height: 16),
                   const SizedBox(width: 4),
                   Text(duration, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14)),
                 ],
@@ -327,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        SvgPicture.asset('assets/chevron-right.svg', color: const Color(0xFF9CA3AF), width: 24, height: 24), // gray-400
+        SvgPicture.asset('assets/chevron-right.svg', colorFilter: const ColorFilter.mode(Color(0xFF9CA3AF), BlendMode.srcIn), width: 24, height: 24), // gray-400
       ],
     );
   }
