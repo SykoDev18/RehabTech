@@ -23,7 +23,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
     super.initState();
     _widgetOptions = <Widget>[
       HomeScreen(onProfileTapped: () => _onItemTapped(3)),
-      const ExercisesScreen(),
+      ExercisesScreen(onProfileTapped: () => _onItemTapped(3)),
       const ProgressScreen(),
       const ProfileScreen(),
     ];
