@@ -1,7 +1,7 @@
-
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:myapp/screens/main/ai_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onProfileTapped;
@@ -62,7 +62,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: IconButton(
                   icon: SvgPicture.asset('assets/sparkles.svg', colorFilter: const ColorFilter.mode(Color(0xFF2563EB), BlendMode.srcIn), width: 28, height: 28),
                   onPressed: () {
-                    Navigator.pushNamed(context, '/ai_chat');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AiChatScreen()),
+                    );
                   },
                 ),
               ),
