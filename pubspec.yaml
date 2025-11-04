@@ -40,6 +40,8 @@ dependencies:
   google_fonts: ^6.3.2
   lucide_icons_flutter: ^3.1.5
   flutter_svg: ^2.2.1
+  google_generative_ai: ^0.4.0
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -67,6 +69,7 @@ flutter:
   assets:
     - assets/
     - assets/exercices/
+    - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
