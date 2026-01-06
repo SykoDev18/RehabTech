@@ -1,7 +1,9 @@
-
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:myapp/models/exercise.dart';
 import 'package:myapp/widgets/exercise_card.dart';
+import 'package:myapp/screens/main/exercise_detail_screen.dart';
 
 class ExercisesScreen extends StatefulWidget {
   final VoidCallback onProfileTapped;
@@ -14,45 +16,13 @@ class ExercisesScreen extends StatefulWidget {
 
 class _ExercisesScreenState extends State<ExercisesScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _selectedFilter = 'Rodilla';
-
-  final List<Map<String, dynamic>> _allExercises = [
-    {
-      'title': 'Flexión de Rodilla',
-      'subtitle': 'Fortalece los cuádriceps.',
-      'duration': '30 min',
-      'iconColor': const Color(0xFF2563EB),
-      'category': 'Rodilla',
-    },
-    {
-      'title': 'Extensión de Cadera',
-      'subtitle': 'Fortalece los glúteos.',
-      'duration': '15 min',
-      'iconColor': const Color(0xFF9333EA),
-      'category': 'Cadera',
-    },
-    {
-      'title': 'Sentadilla Asistida',
-      'subtitle': 'Fortalece las piernas.',
-      'duration': '20 min',
-      'iconColor': const Color(0xFF16A34A),
-      'category': 'Fuerza',
-    },
-    {
-      'title': 'Estiramiento de Cuádriceps',
-      'subtitle': 'Mejora la flexibilidad.',
-      'duration': '10 min',
-      'iconColor': const Color(0xFFEA580C),
-      'category': 'Flexibilidad',
-    },
-  ];
-
-  List<Map<String, dynamic>> _filteredExercises = [];
+  String _selectedFilter = 'Todos';
+  List<Exercise> _filteredExercises = [];
 
   @override
   void initState() {
     super.initState();
-    _filterExercises();
+    _filteredExercises = allExercises;
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -77,20 +47,33 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
   void _filterExercises() {
     final query = _searchController.text.toLowerCase();
     setState(() {
-      _filteredExercises = _allExercises.where((exercise) {
-        final titleMatches = exercise['title']!.toLowerCase().contains(query);
-        final categoryMatches = _selectedFilter == 'Todos' || exercise['category'] == _selectedFilter;
-        return titleMatches && categoryMatches;
+      _filteredExercises = allExercises.where((exercise) {
+        final titleMatches = exercise.title.toLowerCase().contains(query);
+        final descriptionMatches = exercise.description.toLowerCase().contains(query);
+        final musclesMatches = exercise.targetMuscles.toLowerCase().contains(query);
+        final textMatches = titleMatches || descriptionMatches || musclesMatches;
+        
+        final categoryMatches = _selectedFilter == 'Todos' || 
+            exercise.categories.contains(_selectedFilter);
+        
+        return textMatches && categoryMatches;
       }).toList();
     });
   }
 
+  void _openExerciseDetail(Exercise exercise) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ExerciseDetailScreen(exercise: exercise),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final List<String> filters = ['Rodilla', 'Hombro', 'Fuerza', 'Cardio'];
-
     return CustomScrollView(
       slivers: [
+        // Header
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(24, 60, 24, 0),
           sliver: SliverToBoxAdapter(
@@ -98,9 +81,8 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Ejercicios',
+                  'Explorar Ejercicios',
                   style: TextStyle(
-                    fontFamily: 'SF Pro',
                     fontWeight: FontWeight.bold,
                     fontSize: 28,
                     color: Color(0xFF111827),
@@ -108,13 +90,19 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
                 ),
                 GestureDetector(
                   onTap: widget.onProfileTapped,
-                  child: const CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Colors.transparent,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF3B82F6), Color(0xFF22D3EE)],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     child: Icon(
-                      Icons.person_outline,
-                      color: Color(0xFF111827),
-                      size: 28,
+                      LucideIcons.user,
+                      color: Colors.white,
+                      size: 22,
                     ),
                   ),
                 ),
@@ -122,90 +110,170 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
             ),
           ),
         ),
+
+        // Barra de búsqueda
         SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           sliver: SliverToBoxAdapter(
-            child: TextFormField(
-              controller: _searchController,
-              style: const TextStyle(color: Color(0xFF111827), fontSize: 16),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.50),
-                hintText: 'Buscar ejercicio...',
-                hintStyle: const TextStyle(color: Color(0xFF6B7280)),
-                prefixIcon: Padding(
-                  padding: const EdgeInsets.all(14.0),
-                  child: SvgPicture.asset(
-                    'assets/search.svg',
-                    colorFilter: const ColorFilter.mode(Color(0xFF6B7280), BlendMode.srcIn),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: TextFormField(
+                  controller: _searchController,
+                  style: const TextStyle(color: Color(0xFF111827), fontSize: 16),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.60),
+                    hintText: 'Búsqueda por nombre, parte del cuerpo',
+                    hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.all(14.0),
+                      child: Icon(
+                        LucideIcons.search,
+                        color: const Color(0xFF9CA3AF),
+                        size: 22,
+                      ),
+                    ),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(LucideIcons.x, color: const Color(0xFF9CA3AF), size: 20),
+                            onPressed: () {
+                              _searchController.clear();
+                              _filterExercises();
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14.0),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 18),
               ),
             ),
           ),
         ),
+
+        // Filtros horizontales
         SliverToBoxAdapter(
           child: SizedBox(
-            height: 40,
+            height: 44,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              itemCount: filters.length,
+              itemCount: exerciseCategories.length,
               itemBuilder: (context, index) {
-                final filter = filters[index];
+                final filter = exerciseCategories[index];
                 final isSelected = _selectedFilter == filter;
                 return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: ChoiceChip(
-                    label: Text(filter),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      if (selected) {
-                        _onFilterChanged(filter);
-                      }
-                    },
-                    backgroundColor: Colors.white.withOpacity(0.5),
-                    selectedColor: const Color(0xFFE0E7FF), // indigo-100
-                    labelStyle: TextStyle(
-                      color: isSelected ? const Color(0xFF3730A3) : const Color(0xFF111827),
-                      fontWeight: FontWeight.w600,
+                  padding: const EdgeInsets.only(right: 10),
+                  child: GestureDetector(
+                    onTap: () => _onFilterChanged(filter),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: isSelected
+                            ? const LinearGradient(
+                                colors: [Color(0xFF3B82F6), Color(0xFF22D3EE)],
+                              )
+                            : null,
+                        color: isSelected ? null : Colors.white.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(20),
+                        border: isSelected
+                            ? null
+                            : Border.all(color: Colors.white.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        filter,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : const Color(0xFF4B5563),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20.0),
-                      side: BorderSide.none,
-                    ),
-                    pressElevation: 0,
                   ),
                 );
               },
             ),
           ),
         ),
+
+        // Contador de resultados
         SliverPadding(
-          padding: const EdgeInsets.all(24.0),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final exercise = _filteredExercises[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: ExerciseCard(
-                    title: exercise['title']!,
-                    subtitle: exercise['subtitle']!,
-                    duration: exercise['duration']!,
-                    iconColor: exercise['iconColor']!,
-                  ),
-                );
-              },
-              childCount: _filteredExercises.length,
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+          sliver: SliverToBoxAdapter(
+            child: Text(
+              '${_filteredExercises.length} ejercicio${_filteredExercises.length != 1 ? 's' : ''} encontrado${_filteredExercises.length != 1 ? 's' : ''}',
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B7280),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
+
+        // Lista de ejercicios
+        _filteredExercises.isEmpty
+            ? SliverPadding(
+                padding: const EdgeInsets.all(48),
+                sliver: SliverToBoxAdapter(
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          LucideIcons.searchX,
+                          size: 64,
+                          color: const Color(0xFF9CA3AF),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No se encontraron ejercicios',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Intenta con otros términos de búsqueda',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            : SliverPadding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final exercise = _filteredExercises[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: ExerciseCard(
+                          title: exercise.title,
+                          duration: exercise.duration,
+                          icon: exercise.icon,
+                          iconColor: exercise.iconColor,
+                          iconBgColor: exercise.iconBgColor,
+                          onTap: () => _openExerciseDetail(exercise),
+                        ),
+                      );
+                    },
+                    childCount: _filteredExercises.length,
+                  ),
+                ),
+              ),
       ],
     );
   }
