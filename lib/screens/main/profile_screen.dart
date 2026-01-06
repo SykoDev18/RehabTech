@@ -2,15 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:rehabtech/providers/theme_provider.dart';
 import 'package:rehabtech/services/progress_service.dart';
-import 'package:rehabtech/screens/profile/edit_profile_screen.dart';
-import 'package:rehabtech/screens/profile/security_screen.dart';
-import 'package:rehabtech/screens/profile/my_therapist_screen.dart';
-import 'package:rehabtech/screens/profile/text_size_screen.dart';
-import 'package:rehabtech/screens/profile/high_contrast_screen.dart';
-import 'package:rehabtech/screens/profile/notifications_screen.dart';
-import 'package:rehabtech/screens/profile/help_center_screen.dart';
-import 'package:rehabtech/screens/profile/privacy_policy_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -86,10 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title: 'Editar Perfil',
                 subtitle: 'Actualiza tu información personal',
                 onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                  );
+                  await context.push('/profile/edit');
                   _refreshProfile();
                 },
               ),
@@ -97,10 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: LucideIcons.shield,
                 title: 'Seguridad',
                 subtitle: 'Contraseña y autenticación',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SecurityScreen()),
-                ),
+                onTap: () => context.push('/profile/security'),
               ),
               _MenuItem(
                 icon: LucideIcons.stethoscope,
@@ -108,10 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 subtitle: _profile.therapistName.isNotEmpty 
                     ? _profile.therapistName 
                     : 'No asignado',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MyTherapistScreen()),
-                ),
+                onTap: () => context.push('/profile/therapist'),
               ),
             ]),
           ),
@@ -132,19 +118,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: LucideIcons.type,
                 title: 'Tamaño de Texto',
                 subtitle: 'Ajusta el tamaño de la fuente',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TextSizeScreen()),
-                ),
+                onTap: () => context.push('/profile/text-size'),
               ),
               _MenuItem(
                 icon: LucideIcons.contrast,
                 title: 'Alto Contraste',
                 subtitle: 'Mejora la visibilidad',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const HighContrastScreen()),
-                ),
+                onTap: () => context.push('/profile/high-contrast'),
               ),
             ]),
           ),
@@ -165,12 +145,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: LucideIcons.bell,
                 title: 'Notificaciones',
                 subtitle: 'Configura tus alertas',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                ),
+                onTap: () => context.push('/profile/notifications'),
               ),
             ]),
+          ),
+        ),
+
+        // Sección Apariencia (Dark Mode)
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+          sliver: SliverToBoxAdapter(
+            child: _buildSectionTitle('Apariencia'),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+          sliver: SliverToBoxAdapter(
+            child: _buildThemeCard(),
           ),
         ),
 
@@ -189,19 +180,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: LucideIcons.info,
                 title: 'Centro de Ayuda',
                 subtitle: 'Preguntas frecuentes y soporte',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const HelpCenterScreen()),
-                ),
+                onTap: () => context.push('/profile/help'),
               ),
               _MenuItem(
                 icon: LucideIcons.fileText,
                 title: 'Política de Privacidad',
                 subtitle: 'Términos y condiciones',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
-                ),
+                onTap: () => context.push('/profile/privacy'),
               ),
             ]),
           ),
@@ -438,19 +423,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Cerrar Sesión'),
         content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              if (mounted) context.go('/login');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -462,6 +447,103 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildThemeCard() {
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.5)),
+              ),
+              child: Column(
+                children: [
+                  // Modo Oscuro Toggle
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        themeProvider.isDarkMode ? LucideIcons.moon : LucideIcons.sun,
+                        color: const Color(0xFF1E293B),
+                        size: 22,
+                      ),
+                    ),
+                    title: const Text(
+                      'Modo Oscuro',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: Text(
+                      themeProvider.isDarkMode ? 'Activado' : 'Desactivado',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 13,
+                      ),
+                    ),
+                    trailing: Switch.adaptive(
+                      value: themeProvider.isDarkMode,
+                      onChanged: (_) => themeProvider.toggleTheme(),
+                      activeColor: const Color(0xFF3B82F6),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Tema del sistema
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        LucideIcons.smartphone,
+                        color: Colors.purple,
+                        size: 22,
+                      ),
+                    ),
+                    title: const Text(
+                      'Usar tema del sistema',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: Text(
+                      themeProvider.themeMode == ThemeMode.system ? 'Activado' : 'Desactivado',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 13,
+                      ),
+                    ),
+                    trailing: Switch.adaptive(
+                      value: themeProvider.themeMode == ThemeMode.system,
+                      onChanged: (value) {
+                        if (value) {
+                          themeProvider.setThemeMode(ThemeMode.system);
+                        }
+                      },
+                      activeColor: Colors.purple,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

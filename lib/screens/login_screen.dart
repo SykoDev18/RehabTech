@@ -3,8 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:rehabtech/screens/forgot_password_screen.dart';
-import 'package:rehabtech/screens/register_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      if (mounted) Navigator.pushReplacementNamed(context, '/main');
+      if (mounted) context.go('/main');
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         String message = _getErrorMessage(e.code);
@@ -79,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Sign in to Firebase with the Google credential
       await _auth.signInWithCredential(credential);
       
-      if (mounted) Navigator.pushReplacementNamed(context, '/main');
+      if (mounted) context.go('/main');
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -193,14 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 16),
                         TextButton(
-                          onPressed: () {
-                             Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ForgotPasswordScreen(),
-                              ),
-                            );
-                          },
+                          onPressed: () => context.push('/forgot-password'),
                           child: const Text(
                             '¿Olvidaste tu contraseña?',
                             style: TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.w600),
@@ -421,12 +413,7 @@ class _LoginScreenState extends State<LoginScreen> {
           style: TextStyle(color: Colors.grey.shade600),
         ),
         TextButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const RegisterScreen()),
-            );
-          },
+          onPressed: () => context.push('/register'),
           style: TextButton.styleFrom(
             padding: EdgeInsets.zero,
             minimumSize: Size.zero,

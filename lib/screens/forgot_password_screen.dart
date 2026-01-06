@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -73,7 +74,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.pop(),
         ),
         title: const Text(
           'Iniciar Sesión',
@@ -133,7 +134,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => context.go('/login'),
                 child: const Text(
                   'Volver al inicio de sesión',
                   style: TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.w600),
