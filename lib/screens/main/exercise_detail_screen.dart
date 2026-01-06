@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:myapp/models/exercise.dart';
+import 'package:myapp/screens/main/countdown_screen.dart';
 
 class ExerciseDetailScreen extends StatelessWidget {
   final Exercise exercise;
@@ -201,11 +202,10 @@ class ExerciseDetailScreen extends StatelessWidget {
         child: SafeArea(
           child: GestureDetector(
             onTap: () {
-              // TODO: Iniciar ejercicio
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Iniciando ${exercise.title}...'),
-                  backgroundColor: const Color(0xFF2563EB),
+              // Navegar a la cuenta regresiva
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => CountdownScreen(exercise: exercise),
                 ),
               );
             },
