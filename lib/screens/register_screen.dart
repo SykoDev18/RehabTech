@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,39 +21,89 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _firestore = FirebaseFirestore.instance;
   String _userType = 'patient';
   bool _agreedToTerms = false;
+  bool _isLoading = false;
 
   Future<void> _createAccount() async {
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
+        const SnackBar(content: Text('Las contraseñas no coinciden')),
       );
       return;
     }
 
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must agree to the terms and conditions')),
+        const SnackBar(content: Text('Debes aceptar los términos y condiciones')),
       );
       return;
     }
 
+    setState(() => _isLoading = true);
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text,
+        email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
-        'name': _nameController.text,
-        'email': _emailController.text,
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
         'userType': _userType,
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
-      Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Failed to create account')),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Error al crear cuenta')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
+
+      UserCredential userCredential = await _auth.signInWithCredential(credential);
+      
+      // Crear documento de usuario si es nuevo
+      final userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
+      if (!userDoc.exists) {
+        await _firestore.collection('users').doc(userCredential.user!.uid).set({
+          'name': googleUser.displayName ?? '',
+          'email': googleUser.email,
+          'userType': _userType,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+      
+      if (mounted) Navigator.pushReplacementNamed(context, '/main');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al iniciar con Google: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -90,7 +141,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 24),
             _buildTermsAndConditions(),
             const SizedBox(height: 24),
-            _buildGradientButton('Crear Cuenta', _createAccount),
+            _buildGradientButton('Crear Cuenta', _isLoading ? null : _createAccount),
             const SizedBox(height: 24),
             _buildSeparator(),
             const SizedBox(height: 24),
@@ -99,6 +150,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               imagePath: 'assets/apple_logo.png',
               backgroundColor: Colors.black,
               textColor: Colors.white,
+              onPressed: () {},
             ),
             const SizedBox(height: 12),
             _buildSocialButton(
@@ -106,6 +158,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               imagePath: 'assets/google_logo.png',
               backgroundColor: Colors.white,
               textColor: Colors.black,
+              onPressed: _isLoading ? () {} : _signInWithGoogle,
             ),
           ],
         ),
@@ -216,16 +269,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ],
     );
   }
-  Widget _buildGradientButton(String text, VoidCallback onPressed) {
+  Widget _buildGradientButton(String text, VoidCallback? onPressed) {
     return Container(
       height: 50,
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E88E5), Color(0xFF26C6DA)],
+        gradient: LinearGradient(
+          colors: onPressed == null 
+              ? [Colors.grey.shade400, Colors.grey.shade500]
+              : [const Color(0xFF1E88E5), const Color(0xFF26C6DA)],
         ),
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [
+        boxShadow: onPressed == null ? [] : [
           BoxShadow(
             color: Colors.blue.withOpacity(0.3),
             blurRadius: 10,
@@ -242,11 +297,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
             borderRadius: BorderRadius.circular(28),
           ),
         ),
-        child: Text(
-          text,
-          style: const TextStyle(
-              color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
-        ),
+        child: _isLoading
+            ? const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text(
+                text,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+              ),
       ),
     );
   }

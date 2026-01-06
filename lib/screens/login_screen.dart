@@ -2,6 +2,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:rehabtech/screens/forgot_password_screen.dart';
 import 'package:rehabtech/screens/register_screen.dart';
 
@@ -18,19 +19,98 @@ class _LoginScreenState extends State<LoginScreen> {
   final _auth = FirebaseAuth.instance;
   String _userType = 'patient';
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
 
   Future<void> _signIn() async {
+    if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor completa todos los campos')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
     try {
       await _auth.signInWithEmailAndPassword(
-        email: _emailController.text,
+        email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      Navigator.pushReplacementNamed(context, '/main');
+      if (mounted) Navigator.pushReplacementNamed(context, '/main');
     } on FirebaseAuthException catch (e) {
-      // Handle error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Failed to sign in')),
+      if (mounted) {
+        String message = _getErrorMessage(e.code);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al iniciar sesión')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      // Trigger the Google Sign-In flow
+      final googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
+      if (googleUser == null) {
+        // User cancelled the sign-in
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
+
+      // Sign in to Firebase with the Google credential
+      await _auth.signInWithCredential(credential);
+      
+      if (mounted) Navigator.pushReplacementNamed(context, '/main');
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Error al iniciar con Google')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al iniciar con Google: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _getErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No existe una cuenta con este correo';
+      case 'wrong-password':
+        return 'Contraseña incorrecta';
+      case 'invalid-email':
+        return 'El correo electrónico no es válido';
+      case 'user-disabled':
+        return 'Esta cuenta ha sido deshabilitada';
+      case 'invalid-credential':
+        return 'Credenciales inválidas. Verifica tu correo y contraseña';
+      default:
+        return 'Error al iniciar sesión. Intenta de nuevo';
     }
   }
 
@@ -107,7 +187,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        _buildGradientButton('Iniciar Sesión', _signIn),
+                        _buildGradientButton(
+                          'Iniciar Sesión', 
+                          _isLoading ? null : _signIn,
+                        ),
                         const SizedBox(height: 16),
                         TextButton(
                           onPressed: () {
@@ -139,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           imagePath: 'assets/google_logo.png',
                           backgroundColor: Colors.white,
                           textColor: Colors.black,
-                          onPressed: () {},
+                          onPressed: _isLoading ? () {} : _signInWithGoogle,
                         ),
                         const SizedBox(height: 32),
                         _buildSignUpLink(),
@@ -235,16 +318,18 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildGradientButton(String text, VoidCallback onPressed) {
+  Widget _buildGradientButton(String text, VoidCallback? onPressed) {
     return Container(
       height: 50,
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E88E5), Color(0xFF26C6DA)],
+        gradient: LinearGradient(
+          colors: onPressed == null 
+              ? [Colors.grey.shade400, Colors.grey.shade500]
+              : [const Color(0xFF1E88E5), const Color(0xFF26C6DA)],
         ),
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [
+        boxShadow: onPressed == null ? [] : [
           BoxShadow(
             color: Colors.blue.withOpacity(0.3),
             blurRadius: 10,
@@ -261,11 +346,20 @@ class _LoginScreenState extends State<LoginScreen> {
             borderRadius: BorderRadius.circular(28),
           ),
         ),
-        child: Text(
-          text,
-          style: const TextStyle(
-              color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
-        ),
+        child: _isLoading 
+            ? const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text(
+                text,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+              ),
       ),
     );
   }

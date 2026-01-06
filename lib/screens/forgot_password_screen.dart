@@ -12,18 +12,55 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
   final _auth = FirebaseAuth.instance;
+  bool _isLoading = false;
+  bool _emailSent = false;
 
   Future<void> _sendPasswordResetEmail() async {
+    if (_emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor ingresa tu correo electrónico')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
     try {
-      await _auth.sendPasswordResetEmail(email: _emailController.text);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset email sent')),
-      );
-      Navigator.of(context).pop();
+      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
+      setState(() => _emailSent = true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Correo enviado! Revisa tu bandeja de entrada'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Failed to send password reset email')),
-      );
+      String message = _getErrorMessage(e.code);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al enviar el correo. Intenta de nuevo.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _getErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No existe una cuenta con este correo';
+      case 'invalid-email':
+        return 'El correo electrónico no es válido';
+      default:
+        return 'Error al enviar el correo. Intenta de nuevo';
     }
   }
 
@@ -68,7 +105,41 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               exampleText: 'ej. tu@email.com',
             ),
             const SizedBox(height: 32),
-            _buildGradientButton('Enviar Enlace de Recuperación', _sendPasswordResetEmail),
+            _buildGradientButton(
+              _emailSent ? 'Reenviar Enlace' : 'Enviar Enlace de Recuperación', 
+              _isLoading ? null : _sendPasswordResetEmail,
+            ),
+            if (_emailSent) ...[
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Revisa tu correo ${_emailController.text} y sigue las instrucciones para restablecer tu contraseña.',
+                        style: const TextStyle(color: Colors.green),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'Volver al inicio de sesión',
+                  style: TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -95,16 +166,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-   Widget _buildGradientButton(String text, VoidCallback onPressed) {
+   Widget _buildGradientButton(String text, VoidCallback? onPressed) {
     return Container(
       height: 50,
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E88E5), Color(0xFF26C6DA)],
+        gradient: LinearGradient(
+          colors: onPressed == null 
+              ? [Colors.grey.shade400, Colors.grey.shade500]
+              : [const Color(0xFF1E88E5), const Color(0xFF26C6DA)],
         ),
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [
+        boxShadow: onPressed == null ? [] : [
           BoxShadow(
             color: Colors.blue.withOpacity(0.3),
             blurRadius: 10,
@@ -121,11 +194,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             borderRadius: BorderRadius.circular(28),
           ),
         ),
-        child: Text(
-          text,
-          style: const TextStyle(
-              color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
-        ),
+        child: _isLoading 
+            ? const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text(
+                text,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+              ),
       ),
     );
   }
