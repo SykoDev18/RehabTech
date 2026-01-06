@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:myapp/models/exercise.dart';
+import 'package:rehabtech/models/exercise.dart';
 
 class SessionReportScreen extends StatelessWidget {
   final Exercise exercise;

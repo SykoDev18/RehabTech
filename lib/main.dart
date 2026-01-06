@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:myapp/screens/login_screen.dart';
-import 'package:myapp/screens/main/main_nav_screen.dart';
-import 'package:myapp/screens/main/ai_chat_screen.dart';
-import 'package:myapp/services/progress_service.dart';
+import 'package:rehabtech/screens/login_screen.dart';
+import 'package:rehabtech/screens/main/main_nav_screen.dart';
+import 'package:rehabtech/screens/main/ai_chat_screen.dart';
+import 'package:rehabtech/services/progress_service.dart';
 import 'firebase_options.dart';
 
 void main() async {

@@ -1,8 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:myapp/models/exercise.dart';
-import 'package:myapp/screens/main/countdown_screen.dart';
+import 'package:rehabtech/models/exercise.dart';
+import 'package:rehabtech/screens/main/countdown_screen.dart';
 
 class ExerciseDetailScreen extends StatelessWidget {
   final Exercise exercise;

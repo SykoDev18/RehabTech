@@ -2,15 +2,15 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:myapp/services/progress_service.dart';
-import 'package:myapp/screens/profile/edit_profile_screen.dart';
-import 'package:myapp/screens/profile/security_screen.dart';
-import 'package:myapp/screens/profile/my_therapist_screen.dart';
-import 'package:myapp/screens/profile/text_size_screen.dart';
-import 'package:myapp/screens/profile/high_contrast_screen.dart';
-import 'package:myapp/screens/profile/notifications_screen.dart';
-import 'package:myapp/screens/profile/help_center_screen.dart';
-import 'package:myapp/screens/profile/privacy_policy_screen.dart';
+import 'package:rehabtech/services/progress_service.dart';
+import 'package:rehabtech/screens/profile/edit_profile_screen.dart';
+import 'package:rehabtech/screens/profile/security_screen.dart';
+import 'package:rehabtech/screens/profile/my_therapist_screen.dart';
+import 'package:rehabtech/screens/profile/text_size_screen.dart';
+import 'package:rehabtech/screens/profile/high_contrast_screen.dart';
+import 'package:rehabtech/screens/profile/notifications_screen.dart';
+import 'package:rehabtech/screens/profile/help_center_screen.dart';
+import 'package:rehabtech/screens/profile/privacy_policy_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

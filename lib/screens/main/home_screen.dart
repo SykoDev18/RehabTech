@@ -2,10 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
-import 'package:myapp/models/exercise.dart';
-import 'package:myapp/screens/main/ai_chat_screen.dart';
-import 'package:myapp/screens/main/exercise_detail_screen.dart';
-import 'package:myapp/services/progress_service.dart';
+import 'package:rehabtech/models/exercise.dart';
+import 'package:rehabtech/screens/main/ai_chat_screen.dart';
+import 'package:rehabtech/screens/main/exercise_detail_screen.dart';
+import 'package:rehabtech/services/progress_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onProfileTapped;

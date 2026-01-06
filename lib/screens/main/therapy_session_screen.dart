@@ -3,9 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:myapp/models/exercise.dart';
-import 'package:myapp/screens/main/session_report_screen.dart';
-import 'package:myapp/services/progress_service.dart';
+import 'package:rehabtech/models/exercise.dart';
+import 'package:rehabtech/screens/main/session_report_screen.dart';
+import 'package:rehabtech/services/progress_service.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 

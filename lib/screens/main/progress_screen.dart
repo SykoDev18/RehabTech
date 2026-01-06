@@ -2,8 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:myapp/services/progress_service.dart';
-import 'package:myapp/services/pdf_service.dart';
+import 'package:rehabtech/services/progress_service.dart';
+import 'package:rehabtech/services/pdf_service.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});

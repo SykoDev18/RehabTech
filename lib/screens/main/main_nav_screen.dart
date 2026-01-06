@@ -3,11 +3,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:myapp/screens/main/home_screen.dart';
-import 'package:myapp/screens/main/exercises_screen.dart';
-import 'package:myapp/screens/main/messages_screen.dart';
-import 'package:myapp/screens/main/progress_screen.dart';
-import 'package:myapp/screens/main/profile_screen.dart';
+import 'package:rehabtech/screens/main/home_screen.dart';
+import 'package:rehabtech/screens/main/exercises_screen.dart';
+import 'package:rehabtech/screens/main/messages_screen.dart';
+import 'package:rehabtech/screens/main/progress_screen.dart';
+import 'package:rehabtech/screens/main/profile_screen.dart';
 
 class MainNavScreen extends StatefulWidget {
   const MainNavScreen({super.key});

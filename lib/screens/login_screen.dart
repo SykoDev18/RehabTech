@@ -2,8 +2,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:myapp/screens/forgot_password_screen.dart';
-import 'package:myapp/screens/register_screen.dart';
+import 'package:rehabtech/screens/forgot_password_screen.dart';
+import 'package:rehabtech/screens/register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

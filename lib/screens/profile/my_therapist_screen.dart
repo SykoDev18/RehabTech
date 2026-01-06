@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:myapp/services/progress_service.dart';
+import 'package:rehabtech/services/progress_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MyTherapistScreen extends StatelessWidget {

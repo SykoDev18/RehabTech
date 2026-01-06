@@ -1,8 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:myapp/screens/main/ai_chat_screen.dart';
-import 'package:myapp/screens/main/therapist_chat_screen.dart';
+import 'package:rehabtech/screens/main/ai_chat_screen.dart';
+import 'package:rehabtech/screens/main/therapist_chat_screen.dart';
 
 class MessagesScreen extends StatelessWidget {
   const MessagesScreen({super.key});

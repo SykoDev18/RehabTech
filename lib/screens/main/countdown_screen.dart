@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:myapp/models/exercise.dart';
-import 'package:myapp/screens/main/therapy_session_screen.dart';
+import 'package:rehabtech/models/exercise.dart';
+import 'package:rehabtech/screens/main/therapy_session_screen.dart';
 
 class CountdownScreen extends StatefulWidget {
   final Exercise exercise;

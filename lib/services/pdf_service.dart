@@ -5,7 +5,7 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import 'package:myapp/services/progress_service.dart';
+import 'package:rehabtech/services/progress_service.dart';
 
 class PdfService {
   static Future<Uint8List> generateProgressReport(String period) async {
