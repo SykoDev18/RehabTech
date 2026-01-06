@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rehabtech/router/app_router.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -23,6 +24,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _userType = 'patient';
   bool _agreedToTerms = false;
   bool _isLoading = false;
+
+  Future<void> _navigateAfterRegister() async {
+    AppRouter.clearUserTypeCache();
+    if (mounted) {
+      if (_userType == 'therapist') {
+        context.go('/therapist');
+      } else {
+        context.go('/main');
+      }
+    }
+  }
 
   Future<void> _createAccount() async {
     if (_passwordController.text != _confirmPasswordController.text) {
@@ -46,14 +58,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
       );
 
+      // Separar nombre y apellido
+      final nameParts = _nameController.text.trim().split(' ');
+      final firstName = nameParts.isNotEmpty ? nameParts[0] : '';
+      final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
-        'name': _nameController.text.trim(),
+        'name': firstName,
+        'lastName': lastName,
         'email': _emailController.text.trim(),
         'userType': _userType,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      if (mounted) context.go('/main');
+      await _navigateAfterRegister();
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -88,15 +106,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Crear documento de usuario si es nuevo
       final userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
       if (!userDoc.exists) {
+        final nameParts = (googleUser.displayName ?? '').split(' ');
+        final firstName = nameParts.isNotEmpty ? nameParts[0] : '';
+        final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+        
         await _firestore.collection('users').doc(userCredential.user!.uid).set({
-          'name': googleUser.displayName ?? '',
+          'name': firstName,
+          'lastName': lastName,
           'email': googleUser.email,
+          'photoUrl': googleUser.photoUrl,
           'userType': _userType,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
       
-      if (mounted) context.go('/main');
+      await _navigateAfterRegister();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

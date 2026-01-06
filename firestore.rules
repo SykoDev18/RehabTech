@@ -1,0 +1,136 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============ FUNCIONES AUXILIARES ============
+    
+    // Verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Verificar si es el propietario del documento
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Obtener datos del usuario actual
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // Verificar si el usuario es terapeuta
+    function isTherapist() {
+      return isAuthenticated() && getUserData().userType == 'therapist';
+    }
+    
+    // Verificar si el usuario es paciente
+    function isPatient() {
+      return isAuthenticated() && getUserData().userType == 'patient';
+    }
+    
+    // Verificar si el terapeuta tiene asignado al paciente
+    function isAssignedTherapist(patientId) {
+      let patientData = get(/databases/$(database)/documents/users/$(patientId)).data;
+      return isTherapist() && patientData.therapistId == request.auth.uid;
+    }
+    
+    // ============ COLECCIÓN DE USUARIOS ============
+    match /users/{userId} {
+      // Lectura: el propio usuario O su terapeuta asignado
+      allow read: if isOwner(userId) || isAssignedTherapist(userId);
+      
+      // Escritura: solo el propio usuario
+      allow write: if isOwner(userId);
+      
+      // Terapeutas pueden leer lista de pacientes que tienen asignados
+      allow read: if isTherapist() && resource.data.therapistId == request.auth.uid;
+      
+      // ============ SUBCOLECCIONES DEL USUARIO ============
+      
+      // Chats con Nora (solo el propietario)
+      match /nora_chats/{chatId} {
+        allow read, write: if isOwner(userId);
+        
+        match /messages/{messageId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+      
+      // Contexto del paciente (propietario y su terapeuta)
+      match /patient_context/{docId} {
+        allow read, write: if isOwner(userId);
+        allow read: if isAssignedTherapist(userId);
+      }
+      
+      // Progreso de ejercicios (propietario y su terapeuta)
+      match /progress/{progressId} {
+        allow read, write: if isOwner(userId);
+        allow read: if isAssignedTherapist(userId);
+      }
+      
+      // Rutinas asignadas al paciente (terapeuta puede escribir, paciente puede leer)
+      match /routines/{routineId} {
+        allow read: if isOwner(userId) || isAssignedTherapist(userId);
+        allow write: if isAssignedTherapist(userId);
+        
+        match /exercises/{exerciseId} {
+          allow read: if isOwner(userId) || isAssignedTherapist(userId);
+          allow write: if isAssignedTherapist(userId);
+        }
+      }
+    }
+    
+    // ============ COLECCIÓN DE PACIENTES (vista del terapeuta) ============
+    match /therapists/{therapistId}/patients/{patientId} {
+      allow read, write: if isOwner(therapistId);
+    }
+    
+    // ============ COLECCIÓN DE RUTINAS ============
+    match /routines/{routineId} {
+      // El terapeuta que creó la rutina puede leer/escribir
+      allow read, write: if isAuthenticated() && resource.data.therapistId == request.auth.uid;
+      // El paciente asignado puede leer
+      allow read: if isAuthenticated() && resource.data.patientId == request.auth.uid;
+      // Crear nueva rutina si es terapeuta
+      allow create: if isTherapist();
+      
+      match /exercises/{exerciseId} {
+        allow read, write: if isAuthenticated() && 
+          get(/databases/$(database)/documents/routines/$(routineId)).data.therapistId == request.auth.uid;
+        allow read: if isAuthenticated() && 
+          get(/databases/$(database)/documents/routines/$(routineId)).data.patientId == request.auth.uid;
+      }
+    }
+    
+    // ============ COLECCIÓN DE CITAS ============
+    match /appointments/{appointmentId} {
+      // El terapeuta o paciente involucrado pueden leer
+      allow read: if isAuthenticated() && 
+        (resource.data.therapistId == request.auth.uid || resource.data.patientId == request.auth.uid);
+      // Solo el terapeuta puede crear/modificar/eliminar
+      allow write: if isAuthenticated() && 
+        (request.resource.data.therapistId == request.auth.uid || resource.data.therapistId == request.auth.uid);
+    }
+    
+    // ============ COLECCIÓN DE CONVERSACIONES ============
+    match /conversations/{conversationId} {
+      // Ambos participantes pueden leer/escribir
+      allow read, write: if isAuthenticated() && 
+        (resource.data.therapistId == request.auth.uid || resource.data.patientId == request.auth.uid);
+      allow create: if isAuthenticated();
+      
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated() && 
+          (get(/databases/$(database)/documents/conversations/$(conversationId)).data.therapistId == request.auth.uid ||
+           get(/databases/$(database)/documents/conversations/$(conversationId)).data.patientId == request.auth.uid);
+      }
+    }
+    
+    // ============ COLECCIÓN DE EJERCICIOS (catálogo global) ============
+    match /exercises/{exerciseId} {
+      allow read: if isAuthenticated();
+      allow write: if isTherapist();
+    }
+  }
+}

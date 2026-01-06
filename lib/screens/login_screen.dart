@@ -2,8 +2,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rehabtech/router/app_router.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,6 +22,18 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
+  Future<void> _navigateAfterLogin() async {
+    // Obtener el tipo de usuario desde Firestore
+    final userType = await AppRouter.getUserType();
+    if (mounted) {
+      if (userType == 'therapist') {
+        context.go('/therapist');
+      } else {
+        context.go('/main');
+      }
+    }
+  }
+
   Future<void> _signIn() async {
     if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -34,7 +48,8 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      if (mounted) context.go('/main');
+      AppRouter.clearUserTypeCache(); // Limpiar cache para obtener tipo actualizado
+      await _navigateAfterLogin();
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         String message = _getErrorMessage(e.code);
@@ -76,9 +91,31 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       // Sign in to Firebase with the Google credential
-      await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
       
-      if (mounted) context.go('/main');
+      // Check if this is a new user and create profile if needed
+      final userId = userCredential.user?.uid;
+      if (userId != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+        
+        if (!userDoc.exists) {
+          // New user - create profile with selected user type
+          await FirebaseFirestore.instance.collection('users').doc(userId).set({
+            'name': userCredential.user?.displayName?.split(' ').first ?? '',
+            'lastName': userCredential.user?.displayName?.split(' ').skip(1).join(' ') ?? '',
+            'email': userCredential.user?.email ?? '',
+            'photoUrl': userCredential.user?.photoURL,
+            'userType': _userType,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+      
+      AppRouter.clearUserTypeCache();
+      await _navigateAfterLogin();
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

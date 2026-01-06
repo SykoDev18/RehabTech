@@ -52,6 +52,9 @@ class ConversationEntity {
   final String? lastMessage;
   final int unreadCount;
   final String conversationType; // 'nora', 'therapist'
+  final String? participantId; // ID del otro participante
+  final String? participantName;
+  final String? participantPhotoUrl;
 
   const ConversationEntity({
     required this.id,
@@ -61,11 +64,32 @@ class ConversationEntity {
     this.lastMessage,
     this.unreadCount = 0,
     required this.conversationType,
+    this.participantId,
+    this.participantName,
+    this.participantPhotoUrl,
   });
 
   bool get isNoraChat => conversationType == 'nora';
   bool get isTherapistChat => conversationType == 'therapist';
   bool get hasUnread => unreadCount > 0;
+
+  String get formattedTime {
+    final now = DateTime.now();
+    final diff = now.difference(lastMessageAt);
+    
+    if (diff.inMinutes < 60) {
+      return '${lastMessageAt.hour.toString().padLeft(2, '0')}:${lastMessageAt.minute.toString().padLeft(2, '0')}';
+    } else if (diff.inDays == 0) {
+      return '${lastMessageAt.hour.toString().padLeft(2, '0')}:${lastMessageAt.minute.toString().padLeft(2, '0')}';
+    } else if (diff.inDays == 1) {
+      return 'Ayer';
+    } else if (diff.inDays < 7) {
+      final days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+      return days[lastMessageAt.weekday - 1];
+    } else {
+      return '${lastMessageAt.day}/${lastMessageAt.month}';
+    }
+  }
 
   ConversationEntity copyWith({
     String? id,
@@ -75,6 +99,9 @@ class ConversationEntity {
     String? lastMessage,
     int? unreadCount,
     String? conversationType,
+    String? participantId,
+    String? participantName,
+    String? participantPhotoUrl,
   }) {
     return ConversationEntity(
       id: id ?? this.id,
@@ -84,6 +111,9 @@ class ConversationEntity {
       lastMessage: lastMessage ?? this.lastMessage,
       unreadCount: unreadCount ?? this.unreadCount,
       conversationType: conversationType ?? this.conversationType,
+      participantId: participantId ?? this.participantId,
+      participantName: participantName ?? this.participantName,
+      participantPhotoUrl: participantPhotoUrl ?? this.participantPhotoUrl,
     );
   }
 }

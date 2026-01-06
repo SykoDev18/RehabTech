@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rehabtech/screens/login_screen.dart';
 import 'package:rehabtech/screens/register_screen.dart';
 import 'package:rehabtech/screens/forgot_password_screen.dart';
@@ -19,10 +20,43 @@ import 'package:rehabtech/screens/profile/high_contrast_screen.dart';
 import 'package:rehabtech/screens/profile/notifications_screen.dart';
 import 'package:rehabtech/screens/profile/help_center_screen.dart';
 import 'package:rehabtech/screens/profile/privacy_policy_screen.dart';
+import 'package:rehabtech/screens/therapist/therapist_main_nav_screen.dart';
 import 'package:rehabtech/models/exercise.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
+  
+  // Variable para cachear el tipo de usuario
+  static String? _cachedUserType;
+  
+  // Función para obtener el tipo de usuario
+  static Future<String?> getUserType() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+    
+    // Si ya tenemos el tipo cacheado, usarlo
+    if (_cachedUserType != null) return _cachedUserType;
+    
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      if (doc.exists) {
+        _cachedUserType = doc.data()?['userType'] as String? ?? 'patient';
+        return _cachedUserType;
+      }
+    } catch (e) {
+      debugPrint('Error getting user type: $e');
+    }
+    return 'patient';
+  }
+  
+  // Limpiar cache al cerrar sesión
+  static void clearUserTypeCache() {
+    _cachedUserType = null;
+  }
   
   static final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
@@ -30,7 +64,7 @@ class AppRouter {
     debugLogDiagnostics: true,
     
     // Redirect para autenticación
-    redirect: (context, state) {
+    redirect: (context, state) async {
       final isLoggedIn = FirebaseAuth.instance.currentUser != null;
       final isAuthRoute = state.matchedLocation == '/login' || 
                           state.matchedLocation == '/register' ||
@@ -42,9 +76,10 @@ class AppRouter {
         return '/login';
       }
       
-      // Si está logueado y está en la ruta inicial o login, redirigir a main
+      // Si está logueado y está en la ruta inicial o login
       if (isLoggedIn && (state.matchedLocation == '/' || state.matchedLocation == '/login')) {
-        return '/main';
+        final userType = await getUserType();
+        return userType == 'therapist' ? '/therapist' : '/main';
       }
       
       return null;
@@ -54,9 +89,11 @@ class AppRouter {
       // ============ AUTH ROUTES ============
       GoRoute(
         path: '/',
-        redirect: (context, state) {
+        redirect: (context, state) async {
           final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-          return isLoggedIn ? '/main' : '/login';
+          if (!isLoggedIn) return '/login';
+          final userType = await getUserType();
+          return userType == 'therapist' ? '/therapist' : '/main';
         },
       ),
       
@@ -78,7 +115,7 @@ class AppRouter {
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
       
-      // ============ MAIN APP ROUTES ============
+      // ============ MAIN APP ROUTES (PATIENT) ============
       GoRoute(
         path: '/main',
         name: 'main',
@@ -199,6 +236,13 @@ class AppRouter {
         name: 'privacyPolicy',
         builder: (context, state) => const PrivacyPolicyScreen(),
       ),
+      
+      // ============ THERAPIST APP ROUTES ============
+      GoRoute(
+        path: '/therapist',
+        name: 'therapistMain',
+        builder: (context, state) => const TherapistMainNavScreen(),
+      ),
     ],
     
     // Error page
@@ -232,10 +276,14 @@ class AppRouter {
 
 // Extensión para navegación más fácil
 extension GoRouterExtension on BuildContext {
-  void goToLogin() => go('/login');
+  void goToLogin() {
+    AppRouter.clearUserTypeCache();
+    go('/login');
+  }
   void goToRegister() => go('/register');
   void goToForgotPassword() => go('/forgot-password');
   void goToMain() => go('/main');
+  void goToTherapistMain() => go('/therapist');
   void goToNoraChat({String? conversationId}) {
     if (conversationId != null) {
       go('/main/chat/nora?conversationId=$conversationId');
