@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 enum MessageAuthor { user, nora }
 
@@ -173,38 +174,137 @@ Si detectas alguna señal de riesgo:
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60.0),
+        preferredSize: const Size.fromHeight(70.0),
         child: ClipRRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
             child: Container(
-              color: Colors.white.withOpacity(0.40),
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              color: Colors.white.withOpacity(0.60),
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: SafeArea(
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left, color: Color(0xFF2563EB), size: 30),
+                    // Botón atrás con texto
+                    TextButton.icon(
                       onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Nora',
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                      icon: Icon(LucideIcons.chevronLeft, color: const Color(0xFF2563EB), size: 24),
+                      label: const Text(
+                        'Mensajes',
+                        style: TextStyle(
+                          color: Color(0xFF2563EB),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
                         ),
-                        Text(
-                          'En línea',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Color(0xFF16A34A)),
+                      ),
+                    ),
+                    const Spacer(),
+                    
+                    // Avatar con badge
+                    Stack(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF9333EA), Color(0xFFEC4899)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.network(
+                              'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=200&h=200&fit=crop',
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Icon(
+                                LucideIcons.bot,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: -2,
+                          right: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              LucideIcons.bot,
+                              size: 12,
+                              color: const Color(0xFF9333EA),
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.info_outline, color: Color(0xFF6B7280)),
-                      onPressed: () { /* ... */ },
+                    const SizedBox(width: 10),
+                    
+                    // Nombre y subtítulo
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'Nora',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF111827),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              LucideIcons.sparkles,
+                              size: 16,
+                              color: const Color(0xFF9333EA),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Icon(
+                              LucideIcons.bot,
+                              size: 12,
+                              color: const Color(0xFF9333EA),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'Asistente Virtual IA',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
+                    
+                    const Spacer(),
+                    
+                    // Botón info
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF9333EA).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        LucideIcons.info,
+                        color: const Color(0xFF9333EA),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                   ],
                 ),
               ),

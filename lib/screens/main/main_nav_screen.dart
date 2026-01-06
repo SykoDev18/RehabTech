@@ -2,8 +2,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:myapp/screens/main/home_screen.dart';
 import 'package:myapp/screens/main/exercises_screen.dart';
+import 'package:myapp/screens/main/messages_screen.dart';
 import 'package:myapp/screens/main/progress_screen.dart';
 import 'package:myapp/screens/main/profile_screen.dart';
 
@@ -22,8 +24,9 @@ class _MainNavScreenState extends State<MainNavScreen> {
   void initState() {
     super.initState();
     _widgetOptions = <Widget>[
-      HomeScreen(onProfileTapped: () => _onItemTapped(3)),
-      ExercisesScreen(onProfileTapped: () => _onItemTapped(3)),
+      HomeScreen(onProfileTapped: () => _onItemTapped(4)),
+      ExercisesScreen(onProfileTapped: () => _onItemTapped(4)),
+      const MessagesScreen(),
       const ProgressScreen(),
       const ProfileScreen(),
     ];
@@ -80,6 +83,11 @@ class _MainNavScreenState extends State<MainNavScreen> {
                 icon: SvgPicture.asset('assets/dumbbell.svg', colorFilter: const ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
                 activeIcon: SvgPicture.asset('assets/dumbbell.svg', colorFilter: const ColorFilter.mode(activeColor, BlendMode.srcIn)),
                 label: 'Ejercicios',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(LucideIcons.messageCircle, color: inactiveColor),
+                activeIcon: Icon(LucideIcons.messageCircle, color: activeColor),
+                label: 'Mensajes',
               ),
               BottomNavigationBarItem(
                 icon: SvgPicture.asset('assets/trending-up.svg', colorFilter: const ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
