@@ -2,9 +2,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:myapp/screens/login_screen.dart';
 import 'package:myapp/screens/main/main_nav_screen.dart';
 import 'package:myapp/screens/main/ai_chat_screen.dart';
+import 'package:myapp/services/progress_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -13,6 +15,8 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await dotenv.load(fileName: ".env");
+  await initializeDateFormatting('es_ES', null);
+  await ProgressService().init();
   runApp(const MyApp());
 }
 
