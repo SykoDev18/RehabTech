@@ -3,17 +3,147 @@ import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 enum MessageAuthor { user, nora }
 
 class ChatMessage {
   final String text;
   final MessageAuthor author;
-  ChatMessage(this.text, this.author);
+  final DateTime timestamp;
+  
+  ChatMessage(this.text, this.author, {DateTime? timestamp}) 
+      : timestamp = timestamp ?? DateTime.now();
+  
+  Map<String, dynamic> toMap() => {
+    'text': text,
+    'author': author == MessageAuthor.user ? 'user' : 'nora',
+    'timestamp': Timestamp.fromDate(timestamp),
+  };
+  
+  factory ChatMessage.fromMap(Map<String, dynamic> map) => ChatMessage(
+    map['text'] ?? '',
+    map['author'] == 'user' ? MessageAuthor.user : MessageAuthor.nora,
+    timestamp: (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+  );
+}
+
+// Modelo para conversaciones guardadas
+class ChatConversation {
+  final String id;
+  final String title;
+  final DateTime createdAt;
+  final DateTime lastMessageAt;
+  final String? lastMessage;
+  
+  ChatConversation({
+    required this.id,
+    required this.title,
+    required this.createdAt,
+    required this.lastMessageAt,
+    this.lastMessage,
+  });
+  
+  factory ChatConversation.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return ChatConversation(
+      id: doc.id,
+      title: data['title'] ?? 'Conversación',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastMessageAt: (data['lastMessageAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastMessage: data['lastMessage'],
+    );
+  }
+}
+
+// Widget animado de "escribiendo..." con puntos
+class TypingIndicator extends StatefulWidget {
+  const TypingIndicator({super.key});
+
+  @override
+  State<TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<TypingIndicator> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  int _dotCount = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          setState(() {
+            _dotCount = (_dotCount % 3) + 1;
+          });
+          _controller.forward(from: 0);
+        }
+      });
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 0.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(20.0),
+          border: Border.all(color: Colors.white.withOpacity(0.6)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF9333EA), Color(0xFFEC4899)],
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(LucideIcons.bot, color: Colors.white, size: 16),
+            ),
+            const SizedBox(width: 10),
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return Text(
+                  '•' * _dotCount,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF9333EA),
+                    letterSpacing: 4,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class AiChatScreen extends StatefulWidget {
-  const AiChatScreen({super.key});
+  final String? conversationId;
+  
+  const AiChatScreen({super.key, this.conversationId});
 
   @override
   State<AiChatScreen> createState() => _AiChatScreenState();
@@ -21,46 +151,190 @@ class AiChatScreen extends StatefulWidget {
 
 class _AiChatScreenState extends State<AiChatScreen> {
   final TextEditingController _textController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
+  bool _isInitialized = false;
   final String _apiKey = dotenv.env['GEMINI_API_KEY'] ?? 'NO_SE_ENCONTRO_LA_KEY';
   late final GenerativeModel _model;
-  late final ChatSession _chat;
+  ChatSession? _chat;
+  
+  // Firebase
+  final _firestore = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
+  String? _conversationId;
+  String? _userName;
+  String _patientContext = '';
 
   @override
   void initState() {
     super.initState();
-    // 3. (OPCIONAL) Añade una comprobación de que la key existe
+    _conversationId = widget.conversationId;
+    _initializeChat();
+  }
+
+  Future<void> _initializeChat() async {
     if (_apiKey == 'NO_SE_ENCONTRO_LA_KEY') {
       print('¡ERROR! No se pudo cargar la GEMINI_API_KEY desde el .env');
-      // (Aquí podrías mostrar un error al usuario)
     }
 
     _model = GenerativeModel(
-      model: 'gemini-3-flash-preview', 
+      model: 'gemini-3-flash-preview',
       apiKey: _apiKey,
     );
-    _chat = _model.startChat(
-      history: [
-        Content.text(_getNoraSystemPrompt()),
-        Content.model([
-          TextPart('¡Hola! Soy Nora, tu asistente de fisioterapia. Estoy aquí para ayudarte con tus ejercicios y responder tus dudas. ¿En qué te puedo ayudar hoy?')
-        ]),
-      ],
-    );
-    _messages.add(
-      ChatMessage('Nora puede cometer errores, así que verifica sus respuestas.', MessageAuthor.nora)
-    );
+
+    // Cargar datos del usuario
+    await _loadUserData();
+    
+    // Cargar contexto del paciente de conversaciones anteriores
+    await _loadPatientContext();
+
+    // Si hay una conversación existente, cargar mensajes
+    if (_conversationId != null) {
+      await _loadConversation();
+    } else {
+      // Crear nueva conversación
+      await _createNewConversation();
+    }
+
+    // Inicializar el chat con el historial
+    _initializeChatSession();
+    
+    setState(() => _isInitialized = true);
+  }
+
+  Future<void> _loadUserData() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      if (userDoc.exists) {
+        _userName = userDoc.data()?['name'] ?? 'Usuario';
+      }
+    }
+  }
+
+  Future<void> _loadPatientContext() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final patientDoc = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('patient_context')
+        .doc('summary')
+        .get();
+
+    if (patientDoc.exists) {
+      _patientContext = patientDoc.data()?['context'] ?? '';
+    }
+  }
+
+  Future<void> _updatePatientContext(String newInfo) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    _patientContext += '\n$newInfo';
+    
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('patient_context')
+        .doc('summary')
+        .set({
+          'context': _patientContext,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+  }
+
+  Future<void> _createNewConversation() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final docRef = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('nora_chats')
+        .add({
+          'title': 'Nueva conversación',
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastMessageAt': FieldValue.serverTimestamp(),
+          'lastMessage': '',
+        });
+
+    _conversationId = docRef.id;
+    
+    _messages.add(ChatMessage(
+      'Nora puede cometer errores, así que verifica sus respuestas.',
+      MessageAuthor.nora,
+    ));
+  }
+
+  Future<void> _loadConversation() async {
+    final user = _auth.currentUser;
+    if (user == null || _conversationId == null) return;
+
+    final messagesSnapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('nora_chats')
+        .doc(_conversationId)
+        .collection('messages')
+        .orderBy('timestamp')
+        .get();
+
+    _messages.clear();
+    _messages.add(ChatMessage(
+      'Nora puede cometer errores, así que verifica sus respuestas.',
+      MessageAuthor.nora,
+    ));
+
+    for (var doc in messagesSnapshot.docs) {
+      _messages.add(ChatMessage.fromMap(doc.data()));
+    }
+  }
+
+  void _initializeChatSession() {
+    List<Content> history = [
+      Content.text(_getNoraSystemPrompt()),
+      Content.model([
+        TextPart('¡Hola${_userName != null ? ' $_userName' : ''}! Soy Nora, tu asistente de fisioterapia. Estoy aquí para ayudarte con tus ejercicios y responder tus dudas. ¿En qué te puedo ayudar hoy?')
+      ]),
+    ];
+
+    // Agregar mensajes previos al historial de Gemini
+    for (var msg in _messages.skip(1)) {
+      if (msg.author == MessageAuthor.user) {
+        history.add(Content.text(msg.text));
+      } else {
+        history.add(Content.model([TextPart(msg.text)]));
+      }
+    }
+
+    _chat = _model.startChat(history: history);
   }
 
   String _getNoraSystemPrompt() {
-  return '''
-Eres "Nora", una asistente de IA especializada en apoyo fisioterapéutico.
+    String contextSection = '';
+    if (_patientContext.isNotEmpty) {
+      contextSection = '''
 
+# CONTEXTO DEL PACIENTE (información de conversaciones anteriores)
+$_patientContext
+''';
+    }
+
+    String userNameSection = '';
+    if (_userName != null) {
+      userNameSection = '\nEl nombre del paciente es: $_userName\n';
+    }
+
+    return '''
+Eres "Nora", una asistente de IA especializada en apoyo fisioterapéutico.
+$userNameSection$contextSection
 # IDENTIDAD Y TONO
 - Personalidad: Empática, motivadora y profesional
 - Comunícate en un tono cálido pero competente
-- Usa el nombre del usuario cuando lo conozcas (ej. "Marco")
+- Usa el nombre del usuario cuando lo conozcas
 - Sé concisa pero completa en tus respuestas
 - Utiliza lenguaje accesible, evitando jerga innecesaria
 
@@ -71,6 +345,7 @@ Tu función es:
 - Motivar y mantener el ánimo durante la rehabilitación
 - Responder dudas sobre ejercicios específicos de su plan
 - Recordar principios de biomecánica y movimiento correcto
+- IMPORTANTE: Recuerda información importante que el paciente comparta (lesiones, condiciones, preferencias, progreso)
 
 # LÍMITES CRÍTICOS DE SEGURIDAD (OBLIGATORIO)
 ⚠️ NUNCA debes:
@@ -85,68 +360,112 @@ Tu función es:
 - Dolor nuevo en áreas no relacionadas con su tratamiento
 - Hinchazón súbita, enrojecimiento o calor en articulaciones
 - Mareos, náuseas o síntomas inusuales durante ejercicios
-- Cualquier señal de alarma que requiera evaluación médica
-
-# PROTOCOLO DE RESPUESTA ANTE SEÑALES DE ALARMA
-Si detectas alguna señal de riesgo:
-1. Indica al usuario que **detenga el ejercicio inmediatamente**
-2. Sugiere consultar con su fisioterapeuta o médico antes de continuar
-3. No minimices ni trivialices sus síntomas
-4. Recuerda que eres una herramienta de apoyo, no un sustituto profesional
-
-# EJEMPLOS DE INTERACCIÓN
-
-✅ CORRECTO - Retroalimentación sobre técnica:
-"¡Hola Marco! Veo que estás trabajando en tu sentadilla. Recuerda mantener las rodillas alineadas con las puntas de los pies y el peso en los talones. Es normal sentir trabajo muscular en cuádriceps y glúteos, pero no debería haber dolor en las rodillas. ¿Cómo te sientes?"
-
-✅ CORRECTO - Motivación durante ejercicio:
-"¡Excelente progreso, Marco! Ya llevas 3 series. Es normal que sientas cansancio muscular, eso significa que estás trabajando bien. Respira profundo y vamos con la última serie. ¡Tú puedes!"
-
-✅ CORRECTO - Manejo de molestia leve:
-"Entiendo que sientes tensión en el músculo, Marco. Eso puede ser normal durante el estiramiento. Asegúrate de no forzar y mantener la respiración fluida. Si la molestia se vuelve dolor agudo, detén el ejercicio y coméntalo con tu fisioterapeuta en la próxima sesión."
-
-✅ CORRECTO - Respuesta ante señal de alarma:
-"Marco, el dolor agudo que describes en la rodilla no es normal. Por favor, **detén el ejercicio inmediatamente**. Te recomiendo contactar a tu fisioterapeuta antes de continuar con tu rutina. Tu seguridad es lo primero."
-
-❌ INCORRECTO - Diagnóstico (NUNCA HACER):
-"Eso suena a tendinitis rotuliana. Deberías tomar antiinflamatorios y aplicar hielo."
-
-❌ INCORRECTO - Modificar tratamiento (NUNCA HACER):
-"Ese ejercicio parece muy difícil para ti. Mejor sáltalo y haz este otro que te recomiendo."
-
-❌ INCORRECTO - Minimizar síntomas (NUNCA HACER):
-"No te preocupes, ese dolor agudo es normal. Sigue con el ejercicio."
 
 # RECORDATORIOS FINALES
 - Eres una herramienta de APOYO, no reemplazas a profesionales de salud
 - Ante la duda sobre seguridad, siempre recomienda consultar al fisioterapeuta
 - Mantén un equilibrio entre ser motivadora y ser cautelosa con la seguridad
-- Contextualiza tus respuestas según la información que el usuario comparta
 ''';
-}
+  }
+
+  Future<void> _saveMessage(ChatMessage message) async {
+    final user = _auth.currentUser;
+    if (user == null || _conversationId == null) return;
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('nora_chats')
+        .doc(_conversationId)
+        .collection('messages')
+        .add(message.toMap());
+
+    // Actualizar última actividad de la conversación
+    String title = _messages.length <= 2 
+        ? message.text.length > 30 
+            ? '${message.text.substring(0, 30)}...' 
+            : message.text
+        : 'Conversación';
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('nora_chats')
+        .doc(_conversationId)
+        .update({
+          'lastMessageAt': FieldValue.serverTimestamp(),
+          'lastMessage': message.text.length > 50 
+              ? '${message.text.substring(0, 50)}...' 
+              : message.text,
+          if (_messages.length <= 2) 'title': title,
+        });
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _extractAndSavePatientInfo(String userMessage) async {
+    final keywords = [
+      'lesión', 'dolor', 'operación', 'cirugía', 'años', 'edad',
+      'trabajo', 'deporte', 'ejercicio', 'medicamento', 'alergia',
+      'condición', 'diagnóstico', 'peso', 'altura', 'rodilla', 
+      'espalda', 'hombro', 'cadera', 'tobillo', 'muñeca', 'tengo',
+      'me duele', 'sufro', 'padezco'
+    ];
+
+    bool hasRelevantInfo = keywords.any((k) => 
+        userMessage.toLowerCase().contains(k));
+
+    if (hasRelevantInfo) {
+      final timestamp = DateTime.now().toString().substring(0, 10);
+      await _updatePatientContext('[$timestamp] $userMessage');
+    }
+  }
 
   Future<void> _sendMessage() async {
-    final text = _textController.text;
-    if (text.isEmpty) return;
+    final text = _textController.text.trim();
+    if (text.isEmpty || _chat == null) return;
 
     _textController.clear();
     
+    final userMessage = ChatMessage(text, MessageAuthor.user);
     setState(() {
-      _messages.add(ChatMessage(text, MessageAuthor.user));
+      _messages.add(userMessage);
       _isLoading = true;
     });
+    _scrollToBottom();
+
+    // Guardar mensaje del usuario
+    await _saveMessage(userMessage);
+
+    // Extraer y guardar información relevante del paciente
+    await _extractAndSavePatientInfo(text);
 
     try {
-      var response = await _chat.sendMessage(Content.text(text));
+      var response = await _chat!.sendMessage(Content.text(text));
       var noraResponse = response.text;
 
       if (noraResponse != null) {
+        final noraMessage = ChatMessage(noraResponse, MessageAuthor.nora);
         setState(() {
-          _messages.add(ChatMessage(noraResponse, MessageAuthor.nora));
+          _messages.add(noraMessage);
         });
+        
+        // Guardar respuesta de Nora
+        await _saveMessage(noraMessage);
       } else {
+        final errorMessage = ChatMessage('No obtuve respuesta. Intenta de nuevo.', MessageAuthor.nora);
         setState(() {
-          _messages.add(ChatMessage('No obtuve respuesta. Intenta de nuevo.', MessageAuthor.nora));
+          _messages.add(errorMessage);
         });
       }
     } catch (e) {
@@ -156,8 +475,6 @@ Si detectas alguna señal de riesgo:
         errorMsg = 'Error de API key. Verifica tu configuración.';
       } else if (e.toString().contains('quota') || e.toString().contains('limit')) {
         errorMsg = 'Se alcanzó el límite de uso. Intenta más tarde.';
-      } else if (e.toString().contains('not found') || e.toString().contains('deprecated')) {
-        errorMsg = 'Modelo no disponible. Contacta soporte.';
       }
       setState(() {
         _messages.add(ChatMessage(errorMsg, MessageAuthor.nora));
@@ -166,11 +483,27 @@ Si detectas alguna señal de riesgo:
       setState(() {
         _isLoading = false;
       });
+      _scrollToBottom();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isInitialized) {
+      return Scaffold(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue[100]!, Colors.green[100]!],
+            ),
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(color: Color(0xFF9333EA)),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: PreferredSize(
@@ -291,17 +624,20 @@ Si detectas alguna señal de riesgo:
                     
                     const Spacer(),
                     
-                    // Botón info
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF9333EA).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        LucideIcons.info,
-                        color: const Color(0xFF9333EA),
-                        size: 20,
+                    // Botón historial
+                    GestureDetector(
+                      onTap: () => _showChatHistory(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF9333EA).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          LucideIcons.history,
+                          color: const Color(0xFF9333EA),
+                          size: 20,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -327,9 +663,15 @@ Si detectas alguna señal de riesgo:
           children: [
             Expanded(
               child: ListView.builder(
+                controller: _scrollController,
                 padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 20),
-                itemCount: _messages.length,
+                itemCount: _messages.length + (_isLoading ? 1 : 0),
                 itemBuilder: (context, index) {
+                  // Mostrar indicador de escritura al final
+                  if (_isLoading && index == _messages.length) {
+                    return const TypingIndicator();
+                  }
+                  
                   final message = _messages[index];
                   if (index == 0) {
                     return Container(
@@ -390,14 +732,6 @@ Si detectas alguna señal de riesgo:
                 },
               ),
             ),
-            if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: CircularProgressIndicator(),
-                ),
-              ),
             ClipRRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
@@ -423,16 +757,19 @@ Si detectas alguna señal de riesgo:
                               ),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
                             ),
+                            onFieldSubmitted: (_) => _sendMessage(),
                           ),
                         ),
                         const SizedBox(width: 12),
                         InkWell(
-                          onTap: _sendMessage,
+                          onTap: _isLoading ? null : _sendMessage,
                           child: Container(
                             padding: const EdgeInsets.all(12.0),
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF3B82F6), Color(0xFF22D3EE)],
+                              gradient: LinearGradient(
+                                colors: _isLoading 
+                                    ? [Colors.grey[400]!, Colors.grey[500]!]
+                                    : [const Color(0xFF3B82F6), const Color(0xFF22D3EE)],
                                 begin: Alignment.centerLeft,
                                 end: Alignment.centerRight,
                               ),
@@ -451,5 +788,211 @@ Si detectas alguna señal de riesgo:
         ),
       ),
     );
+  }
+
+  void _showChatHistory(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Historial de Chats',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        // Crear nueva conversación
+                        setState(() => _isInitialized = false);
+                        _conversationId = null;
+                        _messages.clear();
+                        await _createNewConversation();
+                        _initializeChatSession();
+                        setState(() => _isInitialized = true);
+                      },
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF9333EA), Color(0xFFEC4899)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.add, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('users')
+                      .doc(_auth.currentUser?.uid)
+                      .collection('nora_chats')
+                      .orderBy('lastMessageAt', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final chats = snapshot.data!.docs
+                        .map((doc) => ChatConversation.fromFirestore(doc))
+                        .toList();
+
+                    if (chats.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No hay conversaciones aún',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: chats.length,
+                      itemBuilder: (context, index) {
+                        final chat = chats[index];
+                        final isCurrentChat = chat.id == _conversationId;
+                        
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: isCurrentChat 
+                                ? const Color(0xFF9333EA).withOpacity(0.1)
+                                : Colors.grey[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: isCurrentChat 
+                                ? Border.all(color: const Color(0xFF9333EA).withOpacity(0.3))
+                                : null,
+                          ),
+                          child: ListTile(
+                            onTap: () async {
+                              Navigator.pop(context);
+                              if (chat.id != _conversationId) {
+                                setState(() => _isInitialized = false);
+                                _conversationId = chat.id;
+                                await _loadConversation();
+                                _initializeChatSession();
+                                setState(() => _isInitialized = true);
+                              }
+                            },
+                            leading: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF9333EA), Color(0xFFEC4899)],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                LucideIcons.messageCircle,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                            ),
+                            title: Text(
+                              chat.title,
+                              style: TextStyle(
+                                fontWeight: isCurrentChat ? FontWeight.bold : FontWeight.w500,
+                                color: isCurrentChat ? const Color(0xFF9333EA) : null,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              chat.lastMessage ?? 'Sin mensajes',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  _formatDate(chat.lastMessageAt),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                                if (isCurrentChat)
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF9333EA),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Text(
+                                      'Actual',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) return 'Ahora';
+    if (diff.inHours < 1) return 'Hace ${diff.inMinutes}m';
+    if (diff.inDays < 1) return 'Hace ${diff.inHours}h';
+    if (diff.inDays < 7) return 'Hace ${diff.inDays}d';
+    return '${date.day}/${date.month}/${date.year}';
   }
 }
