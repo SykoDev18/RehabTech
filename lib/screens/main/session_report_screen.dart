@@ -11,6 +11,7 @@ class SessionReportScreen extends StatelessWidget {
   final int elapsedSeconds;
   final List<String> feedbackGood;
   final List<String> feedbackImprove;
+  final int painLevel;
 
   const SessionReportScreen({
     super.key,
@@ -20,6 +21,7 @@ class SessionReportScreen extends StatelessWidget {
     required this.elapsedSeconds,
     required this.feedbackGood,
     required this.feedbackImprove,
+    this.painLevel = 0,
   });
 
   String _formatTime(int seconds) {

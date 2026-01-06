@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:myapp/models/exercise.dart';
 import 'package:myapp/screens/main/session_report_screen.dart';
+import 'package:myapp/services/progress_service.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -224,6 +225,233 @@ Reglas:
       _feedbackImprove.add('Trabaja en aumentar el número de repeticiones');
     }
     
+    // Mostrar diálogo de dolor antes de ir al reporte
+    _showPainLevelDialog();
+  }
+  
+  void _showPainLevelDialog() {
+    int painLevel = 0;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _getPainColor(painLevel).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _getPainIcon(painLevel),
+                  size: 48,
+                  color: _getPainColor(painLevel),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                '¿Sentiste dolor durante el ejercicio?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Tu respuesta nos ayuda a personalizar tu rehabilitación',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '0',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green[600],
+                    ),
+                  ),
+                  Text(
+                    'Nivel de dolor: $painLevel',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  Text(
+                    '10',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red[600],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: _getPainColor(painLevel),
+                  inactiveTrackColor: Colors.grey[200],
+                  thumbColor: _getPainColor(painLevel),
+                  overlayColor: _getPainColor(painLevel).withOpacity(0.2),
+                  trackHeight: 8,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 14),
+                ),
+                child: Slider(
+                  value: painLevel.toDouble(),
+                  min: 0,
+                  max: 10,
+                  divisions: 10,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      painLevel = value.round();
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Sin dolor', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  Text('Dolor severo', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _buildPainIndicator(painLevel),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _saveProgressAndNavigate(painLevel);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3B82F6),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    'Continuar al Reporte',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildPainIndicator(int level) {
+    String message;
+    Color bgColor;
+    IconData icon;
+    
+    if (level == 0) {
+      message = '¡Excelente! Sin molestias';
+      bgColor = Colors.green[50]!;
+      icon = LucideIcons.thumbsUp;
+    } else if (level <= 3) {
+      message = 'Molestia leve - Normal durante rehabilitación';
+      bgColor = Colors.green[50]!;
+      icon = LucideIcons.circleCheck;
+    } else if (level <= 5) {
+      message = 'Dolor moderado - Reduce la intensidad';
+      bgColor = Colors.amber[50]!;
+      icon = LucideIcons.triangleAlert;
+    } else if (level <= 7) {
+      message = 'Dolor considerable - Consulta con tu terapeuta';
+      bgColor = Colors.orange[50]!;
+      icon = LucideIcons.circleAlert;
+    } else {
+      message = 'Dolor severo - Detén el ejercicio y consulta médico';
+      bgColor = Colors.red[50]!;
+      icon = LucideIcons.octagonAlert;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: _getPainColor(level), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 13,
+                color: _getPainColor(level),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Color _getPainColor(int level) {
+    if (level <= 3) return const Color(0xFF22C55E);
+    if (level <= 5) return const Color(0xFFF59E0B);
+    if (level <= 7) return const Color(0xFFF97316);
+    return const Color(0xFFEF4444);
+  }
+  
+  IconData _getPainIcon(int level) {
+    if (level == 0) return LucideIcons.smile;
+    if (level <= 3) return LucideIcons.meh;
+    if (level <= 6) return LucideIcons.frown;
+    return LucideIcons.angry;
+  }
+  
+  void _saveProgressAndNavigate(int painLevel) async {
+    // Guardar progreso
+    final progressService = ProgressService();
+    final completionPercentage = ((_currentRep / widget.exercise.reps) * 100).clamp(0.0, 100.0);
+    
+    final progressData = ProgressData(
+      date: DateTime.now(),
+      exerciseId: widget.exercise.id,
+      exerciseName: widget.exercise.title,
+      completedReps: _currentRep,
+      totalReps: widget.exercise.reps,
+      durationSeconds: _elapsedSeconds,
+      painLevel: painLevel,
+      completionPercentage: completionPercentage,
+    );
+    
+    await progressService.saveProgress(progressData);
+    
+    // Navegar al reporte
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => SessionReportScreen(
@@ -233,6 +461,7 @@ Reglas:
           elapsedSeconds: _elapsedSeconds,
           feedbackGood: _feedbackGood,
           feedbackImprove: _feedbackImprove,
+          painLevel: painLevel,
         ),
       ),
     );
