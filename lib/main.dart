@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
-import 'package:rehabtech/providers/theme_provider.dart';
-import 'package:rehabtech/router/app_router.dart';
-import 'package:rehabtech/services/progress_service.dart';
 import 'firebase_options.dart';
+
+// Layered architecture imports
+import 'presentation/providers/theme_provider.dart';
+import 'router/app_router.dart';
+import 'services/progress_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

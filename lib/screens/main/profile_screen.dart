@@ -4,7 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:rehabtech/providers/theme_provider.dart';
+import 'package:rehabtech/presentation/providers/theme_provider.dart';
 import 'package:rehabtech/services/progress_service.dart';
 
 class ProfileScreen extends StatefulWidget {
