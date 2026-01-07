@@ -151,6 +151,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
             age: data['age'],
             status: data['patientStatus'] ?? 'in_progress',
             therapistId: userId,
+            patientId: data['patientId'],
             progressPercentage: (data['progressPercentage'] ?? 0).toDouble(),
             completedSessions: data['completedSessions'] ?? 0,
             totalSessions: data['totalSessions'] ?? 0,
@@ -161,10 +162,11 @@ class _PatientsScreenState extends State<PatientsScreen> {
           );
         }).toList();
 
-        // Filter by search
+        // Filter by search (including patientId)
         final filteredPatients = patients.where((p) =>
             p.fullName.toLowerCase().contains(_searchQuery) ||
-            p.condition.toLowerCase().contains(_searchQuery)).toList();
+            p.condition.toLowerCase().contains(_searchQuery) ||
+            (p.patientId?.toLowerCase().contains(_searchQuery) ?? false)).toList();
 
         if (filteredPatients.isEmpty) {
           return SliverToBoxAdapter(
@@ -327,6 +329,224 @@ class _PatientsScreenState extends State<PatientsScreen> {
   }
 
   void _showAddPatientModal() {
+    final patientIdController = TextEditingController();
+    bool isSearching = false;
+    String? searchError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.5,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFDBEAFE),
+                Color(0xFFF0FDF4),
+                Color(0xFFEFF6FF),
+              ],
+            ),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Agregar Paciente',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(LucideIcons.x, size: 18),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                // Info
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.info, color: Color(0xFF3B82F6), size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Solicita el ID de paciente a tu paciente. Lo encuentra en su perfil de la app.',
+                          style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Patient ID input
+                const Text(
+                  'ID del Paciente',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF374151),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: patientIdController,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    hintText: 'Ej: ABC12345',
+                    hintStyle: TextStyle(color: Colors.grey[400]),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon: const Icon(LucideIcons.hash, color: Color(0xFF3B82F6)),
+                    errorText: searchError,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Search button
+                GestureDetector(
+                  onTap: isSearching ? null : () async {
+                    final patientId = patientIdController.text.trim().toUpperCase();
+                    if (patientId.isEmpty) {
+                      setModalState(() => searchError = 'Ingresa un ID de paciente');
+                      return;
+                    }
+
+                    setModalState(() {
+                      isSearching = true;
+                      searchError = null;
+                    });
+
+                    try {
+                      // Search for patient by patientId
+                      final query = await FirebaseFirestore.instance
+                          .collection('users')
+                          .where('patientId', isEqualTo: patientId)
+                          .where('userType', isEqualTo: 'patient')
+                          .limit(1)
+                          .get();
+
+                      if (query.docs.isEmpty) {
+                        setModalState(() {
+                          searchError = 'No se encontró un paciente con ese ID';
+                          isSearching = false;
+                        });
+                        return;
+                      }
+
+                      final patientDoc = query.docs.first;
+                      final patientData = patientDoc.data();
+                      final userId = FirebaseAuth.instance.currentUser?.uid;
+
+                      // Check if already linked
+                      if (patientData['therapistId'] == userId) {
+                        setModalState(() {
+                          searchError = 'Este paciente ya está en tu lista';
+                          isSearching = false;
+                        });
+                        return;
+                      }
+
+                      // Link patient to therapist
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(patientDoc.id)
+                          .update({'therapistId': userId});
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${patientData['name']} agregado como paciente'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      setModalState(() {
+                        searchError = 'Error al buscar paciente';
+                        isSearching = false;
+                      });
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                      ),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Center(
+                      child: isSearching
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(LucideIcons.search, color: Colors.white, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Buscar y Agregar',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddPatientManualModal() {
     final nameController = TextEditingController();
     final conditionController = TextEditingController();
     final ageController = TextEditingController();

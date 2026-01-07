@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 
 class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key});
@@ -341,12 +343,8 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                   Expanded(
                     child: _buildContactButton(
                       icon: LucideIcons.messageCircle,
-                      label: 'Chat',
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Abriendo chat de soporte...')),
-                        );
-                      },
+                      label: 'Chat IA',
+                      onTap: () => _openSupportChat(context),
                     ),
                   ),
                 ],
@@ -391,13 +389,349 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   }
   
   void _launchEmail() async {
-    final uri = Uri.parse('mailto:soporte@rehabtech.com?subject=Ayuda%20con%20RehabTech');
+    final uri = Uri.parse('mailto:rehabtechnoreply@gmail.com?subject=Solicitud%20de%20Ayuda%20-%20RehabTech&body=Hola,%20necesito%20ayuda%20con:');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se puede abrir el correo')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se puede abrir el correo')),
+        );
+      }
     }
   }
+
+  void _openSupportChat(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const _SupportChatScreen(),
+      ),
+    );
+  }
+}
+
+/// Pantalla de chat de soporte con IA
+class _SupportChatScreen extends StatefulWidget {
+  const _SupportChatScreen();
+
+  @override
+  State<_SupportChatScreen> createState() => _SupportChatScreenState();
+}
+
+class _SupportChatScreenState extends State<_SupportChatScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final List<_ChatMessage> _messages = [];
+  GenerativeModel? _model;
+  ChatSession? _chat;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeChat();
+    _addWelcomeMessage();
+  }
+
+  void _initializeChat() {
+    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
+    if (apiKey.isNotEmpty) {
+      _model = GenerativeModel(
+        model: 'gemini-2.5-flash-preview-05-20',
+        apiKey: apiKey,
+        systemInstruction: Content.text('''
+Eres el asistente de soporte técnico de RehabTech, una aplicación de rehabilitación física.
+Tu rol es ayudar a los usuarios con:
+- Problemas técnicos de la aplicación
+- Preguntas sobre cómo usar funciones
+- Dudas sobre ejercicios y sesiones
+- Problemas con la cámara o el seguimiento
+- Configuración de cuenta y perfil
+
+Responde siempre en español, de manera amable y concisa.
+Si no puedes resolver un problema, sugiere contactar a soporte por email: rehabtechnoreply@gmail.com
+'''),
+      );
+      _chat = _model!.startChat();
+    }
+  }
+
+  void _addWelcomeMessage() {
+    _messages.add(_ChatMessage(
+      text: '¡Hola! 👋 Soy el asistente de soporte de RehabTech. ¿En qué puedo ayudarte hoy?\n\nPuedes preguntarme sobre:\n• Problemas técnicos\n• Cómo usar la app\n• Ejercicios y sesiones\n• Tu cuenta y perfil',
+      isUser: false,
+    ));
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _chat == null) return;
+
+    setState(() {
+      _messages.add(_ChatMessage(text: text, isUser: true));
+      _isLoading = true;
+    });
+    _messageController.clear();
+    _scrollToBottom();
+
+    try {
+      final response = await _chat!.sendMessage(Content.text(text));
+      if (mounted && response.text != null) {
+        setState(() {
+          _messages.add(_ChatMessage(text: response.text!, isUser: false));
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(
+            text: 'Lo siento, hubo un error. Por favor intenta de nuevo o contacta a soporte por email.',
+            isUser: false,
+          ));
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blue[50]!, Colors.green[50]!],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(LucideIcons.arrowLeft, size: 22),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(LucideIcons.bot, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Soporte RehabTech',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF111827),
+                            ),
+                          ),
+                          Text(
+                            'Asistente IA • En línea',
+                            style: TextStyle(fontSize: 12, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Messages
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _messages.length + (_isLoading ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == _messages.length && _isLoading) {
+                      return _buildTypingIndicator();
+                    }
+                    return _buildMessageBubble(_messages[index]);
+                  },
+                ),
+              ),
+              
+              // Input
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: 'Escribe tu pregunta...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: _sendMessage,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(LucideIcons.send, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(_ChatMessage message) {
+    return Align(
+      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: message.isUser ? const Color(0xFF3B82F6) : Colors.white,
+          borderRadius: BorderRadius.circular(16).copyWith(
+            bottomRight: message.isUser ? const Radius.circular(4) : null,
+            bottomLeft: !message.isUser ? const Radius.circular(4) : null,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 5,
+            ),
+          ],
+        ),
+        child: Text(
+          message.text,
+          style: TextStyle(
+            color: message.isUser ? Colors.white : const Color(0xFF111827),
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildDot(0),
+            _buildDot(1),
+            _buildDot(2),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDot(int index) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 600 + (index * 200)),
+      builder: (context, value, child) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: Colors.grey[400],
+            shape: BoxShape.circle,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ChatMessage {
+  final String text;
+  final bool isUser;
+
+  _ChatMessage({required this.text, required this.isUser});
 }

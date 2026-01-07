@@ -1,0 +1,92 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ============ FUNCIONES AUXILIARES ============
+    
+    // Verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Verificar si es el propietario del archivo
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Verificar tamaño máximo de archivo (5MB)
+    function isValidSize() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Verificar tamaño máximo para videos (50MB)
+    function isValidVideoSize() {
+      return request.resource.size < 50 * 1024 * 1024;
+    }
+    
+    // Verificar que es una imagen
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // Verificar que es un video
+    function isVideo() {
+      return request.resource.contentType.matches('video/.*');
+    }
+
+    // Verificar que es un PDF
+    function isPDF() {
+      return request.resource.contentType == 'application/pdf';
+    }
+    
+    // ============ IMÁGENES DE PERFIL ============
+    match /profile_images/{fileName} {
+      // Solo el propietario puede subir/modificar su foto (el fileName contiene el userId)
+      allow write: if isAuthenticated() && isImage() && isValidSize();
+      // Cualquier usuario autenticado puede ver fotos de perfil
+      allow read: if isAuthenticated();
+    }
+    
+    // ============ ARCHIVOS DE EJERCICIOS ============
+    match /exercises/{fileName} {
+      // Solo lectura para usuarios autenticados
+      allow read: if isAuthenticated();
+      // Solo admins pueden subir (por ahora nadie desde la app)
+      allow write: if false;
+    }
+
+    // ============ VIDEOS DE EJERCICIOS (subidos por terapeutas) ============
+    match /exercise_videos/{therapistId}/{fileName} {
+      // El terapeuta puede subir videos
+      allow write: if isOwner(therapistId) && isVideo() && isValidVideoSize();
+      // Usuarios autenticados pueden ver
+      allow read: if isAuthenticated();
+    }
+    
+    // ============ ARCHIVOS DE RUTINAS ============
+    match /routines/{therapistId}/{fileName} {
+      // El terapeuta puede subir archivos a sus rutinas
+      allow write: if isOwner(therapistId) && isValidSize();
+      // Usuarios autenticados pueden leer
+      allow read: if isAuthenticated();
+    }
+    
+    // ============ REPORTES PDF ============
+    match /reports/{userId}/{fileName} {
+      // El usuario puede subir/leer sus propios reportes
+      allow read, write: if isOwner(userId) && (isPDF() || isImage());
+    }
+
+    // ============ ARCHIVOS DE CHAT ============
+    match /chat_attachments/{conversationId}/{fileName} {
+      // Usuarios autenticados pueden subir/leer
+      allow read, write: if isAuthenticated() && isValidSize();
+    }
+
+    // ============ CAPTURAS DE SESIÓN ============
+    match /session_captures/{userId}/{sessionId}/{fileName} {
+      // Solo el propietario puede subir/ver sus capturas
+      allow read, write: if isOwner(userId) && isImage() && isValidSize();
+    }
+  }
+}

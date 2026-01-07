@@ -34,17 +34,29 @@ service cloud.firestore {
       let patientData = get(/databases/$(database)/documents/users/$(patientId)).data;
       return isTherapist() && patientData.therapistId == request.auth.uid;
     }
+
+    // Validar que solo se actualicen campos permitidos
+    function onlyUpdatesFields(allowedFields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields);
+    }
     
     // ============ COLECCIÓN DE USUARIOS ============
     match /users/{userId} {
-      // Lectura: el propio usuario O su terapeuta asignado
-      allow read: if isOwner(userId) || isAssignedTherapist(userId);
+      // Lectura: el propio usuario O su terapeuta asignado O búsqueda por patientId
+      allow read: if isOwner(userId) 
+                  || isAssignedTherapist(userId)
+                  || (isTherapist() && resource.data.therapistId == request.auth.uid);
       
-      // Escritura: solo el propio usuario
-      allow write: if isOwner(userId);
+      // Crear: solo el propio usuario (al registrarse)
+      allow create: if isOwner(userId);
       
-      // Terapeutas pueden leer lista de pacientes que tienen asignados
-      allow read: if isTherapist() && resource.data.therapistId == request.auth.uid;
+      // Actualizar: el propio usuario puede actualizar su perfil
+      // O un terapeuta puede vincular/desvincular al paciente (actualizar therapistId)
+      allow update: if isOwner(userId) 
+                    || (isTherapist() && onlyUpdatesFields(['therapistId']));
+      
+      // Eliminar: solo el propio usuario
+      allow delete: if isOwner(userId);
       
       // ============ SUBCOLECCIONES DEL USUARIO ============
       
@@ -65,6 +77,12 @@ service cloud.firestore {
       
       // Progreso de ejercicios (propietario y su terapeuta)
       match /progress/{progressId} {
+        allow read, write: if isOwner(userId);
+        allow read: if isAssignedTherapist(userId);
+      }
+      
+      // Sesiones de terapia
+      match /sessions/{sessionId} {
         allow read, write: if isOwner(userId);
         allow read: if isAssignedTherapist(userId);
       }
@@ -109,16 +127,20 @@ service cloud.firestore {
       allow read: if isAuthenticated() && 
         (resource.data.therapistId == request.auth.uid || resource.data.patientId == request.auth.uid);
       // Solo el terapeuta puede crear/modificar/eliminar
-      allow write: if isAuthenticated() && 
-        (request.resource.data.therapistId == request.auth.uid || resource.data.therapistId == request.auth.uid);
+      allow create: if isTherapist();
+      allow update, delete: if isAuthenticated() && resource.data.therapistId == request.auth.uid;
     }
     
     // ============ COLECCIÓN DE CONVERSACIONES ============
     match /conversations/{conversationId} {
-      // Ambos participantes pueden leer/escribir
-      allow read, write: if isAuthenticated() && 
+      // Ambos participantes pueden leer
+      allow read: if isAuthenticated() && 
         (resource.data.therapistId == request.auth.uid || resource.data.patientId == request.auth.uid);
+      // Crear conversación si es terapeuta o paciente vinculado
       allow create: if isAuthenticated();
+      // Actualizar (para lastMessage, etc.)
+      allow update: if isAuthenticated() && 
+        (resource.data.therapistId == request.auth.uid || resource.data.patientId == request.auth.uid);
       
       match /messages/{messageId} {
         allow read, write: if isAuthenticated() && 
@@ -131,6 +153,18 @@ service cloud.firestore {
     match /exercises/{exerciseId} {
       allow read: if isAuthenticated();
       allow write: if isTherapist();
+    }
+
+    // ============ COLECCIÓN DE NOTIFICACIONES ============
+    match /notifications/{notificationId} {
+      allow read, write: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
+    }
+
+    // ============ REPORTES/FEEDBACK ============
+    match /feedback/{feedbackId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
   }
 }

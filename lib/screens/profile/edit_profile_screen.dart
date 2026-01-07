@@ -1,7 +1,13 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rehabtech/services/progress_service.dart';
+import 'package:rehabtech/core/utils/logger.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -13,6 +19,7 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final ProgressService _progressService = ProgressService();
+  final ImagePicker _picker = ImagePicker();
   
   late TextEditingController _nameController;
   late TextEditingController _lastNameController;
@@ -23,6 +30,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _therapistController;
   
   bool _isLoading = false;
+  bool _isUploadingImage = false;
+  String? _photoUrl;
   
   @override
   void initState() {
@@ -35,6 +44,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _birthDateController = TextEditingController(text: profile.birthDate);
     _conditionController = TextEditingController(text: profile.condition);
     _therapistController = TextEditingController(text: profile.therapistName);
+    _photoUrl = profile.photoUrl;
   }
   
   @override
@@ -62,6 +72,116 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
     }
   }
+
+  Future<void> _pickAndUploadImage() async {
+    try {
+      // Mostrar opciones de cámara o galería
+      final source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) => Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Seleccionar imagen',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(LucideIcons.camera, color: Color(0xFF3B82F6)),
+                ),
+                title: const Text('Tomar foto'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(LucideIcons.image, color: Color(0xFF3B82F6)),
+                ),
+                title: const Text('Elegir de galería'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      );
+
+      if (source == null) return;
+
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 80,
+      );
+
+      if (pickedFile == null) return;
+
+      setState(() => _isUploadingImage = true);
+
+      // Subir a Firebase Storage
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) throw Exception('Usuario no autenticado');
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child('$userId.jpg');
+
+      await ref.putFile(File(pickedFile.path));
+      final downloadUrl = await ref.getDownloadURL();
+
+      // Actualizar en Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({'photoUrl': downloadUrl});
+
+      setState(() {
+        _photoUrl = downloadUrl;
+        _isUploadingImage = false;
+      });
+
+      AppLogger.info('Imagen de perfil actualizada', tag: 'EditProfile');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto de perfil actualizada'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e, st) {
+      AppLogger.error('Error al subir imagen', error: e, stackTrace: st, tag: 'EditProfile');
+      setState(() => _isUploadingImage = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al subir la imagen'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
   
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
@@ -76,21 +196,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       birthDate: _birthDateController.text.trim(),
       condition: _conditionController.text.trim(),
       therapistName: _therapistController.text.trim(),
-      photoUrl: _progressService.userProfile.photoUrl,
+      photoUrl: _photoUrl ?? '',
     );
     
     await _progressService.saveProfile(profile);
     
     setState(() => _isLoading = false);
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Perfil actualizado correctamente'),
-        backgroundColor: Color(0xFF22C55E),
-      ),
-    );
-    
-    Navigator.pop(context);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Perfil actualizado correctamente'),
+          backgroundColor: Color(0xFF22C55E),
+        ),
+      );
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -248,42 +369,60 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   
   Widget _buildProfilePhoto() {
     return Center(
-      child: Stack(
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withOpacity(0.1),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFF3B82F6),
-                width: 3,
-              ),
-            ),
-            child: const Icon(
-              LucideIcons.user,
-              size: 50,
-              color: Color(0xFF3B82F6),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Color(0xFF3B82F6),
+      child: GestureDetector(
+        onTap: _isUploadingImage ? null : _pickAndUploadImage,
+        child: Stack(
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFF3B82F6),
+                  width: 3,
+                ),
+                image: _photoUrl != null && _photoUrl!.isNotEmpty
+                    ? DecorationImage(
+                        image: NetworkImage(_photoUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
-              child: const Icon(
-                LucideIcons.camera,
-                size: 20,
-                color: Colors.white,
+              child: _isUploadingImage
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF3B82F6),
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : (_photoUrl == null || _photoUrl!.isEmpty)
+                      ? const Icon(
+                          LucideIcons.user,
+                          size: 50,
+                          color: Color(0xFF3B82F6),
+                        )
+                      : null,
+            ),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF3B82F6),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  LucideIcons.camera,
+                  size: 20,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

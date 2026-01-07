@@ -1,6 +1,7 @@
 /// Patient entity for therapist's view
 class PatientEntity {
   final String id;
+  final String? patientId; // ID único de 8 caracteres para conexión
   final String name;
   final String lastName;
   final String email;
@@ -20,6 +21,7 @@ class PatientEntity {
 
   const PatientEntity({
     required this.id,
+    this.patientId,
     required this.name,
     this.lastName = '',
     required this.email,

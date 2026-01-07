@@ -1,10 +1,12 @@
 
+import 'dart:math';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:rehabtech/router/app_router.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -36,6 +38,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  /// Genera un ID único de paciente de 8 caracteres alfanuméricos
+  String _generatePatientId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random();
+    return List.generate(8, (index) => chars[random.nextInt(chars.length)]).join();
+  }
+
   Future<void> _createAccount() async {
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -63,13 +72,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final firstName = nameParts.isNotEmpty ? nameParts[0] : '';
       final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
 
+      // Generar ID único de paciente si es paciente
+      final patientId = _userType == 'patient' ? _generatePatientId() : null;
+
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'name': firstName,
         'lastName': lastName,
         'email': _emailController.text.trim(),
         'userType': _userType,
+        'patientId': patientId,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Enviar email de verificación
+      await userCredential.user!.sendEmailVerification();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Cuenta creada! Revisa tu correo para verificar tu cuenta.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
 
       await _navigateAfterRegister();
     } on FirebaseAuthException catch (e) {
@@ -279,13 +305,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextSpan(
                   text: 'Términos y Condiciones',
                   style: const TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.bold),
-                  recognizer: TapGestureRecognizer()..onTap = () { /* Handle tap */ },
+                  recognizer: TapGestureRecognizer()..onTap = () => _openTermsAndConditions(),
                 ),
                 const TextSpan(text: ' y la '),
                 TextSpan(
                   text: 'Política de Privacidad',
                   style: const TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.bold),
-                  recognizer: TapGestureRecognizer()..onTap = () { /* Handle tap */ },
+                  recognizer: TapGestureRecognizer()..onTap = () => _openPrivacyPolicy(),
                 ),
               ],
             ),
@@ -294,6 +320,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ],
     );
   }
+
+  Future<void> _openTermsAndConditions() async {
+    final uri = Uri.parse('https://drive.google.com/file/d/1pluhJYI2OoKxA4U8mh828U7hG3-O0NVx/view?usp=sharing');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    final uri = Uri.parse('https://drive.google.com/file/d/1he2yl9Hap6-dhgsS7tqUIj8Vukp_-4hf/view?usp=sharing');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   Widget _buildGradientButton(String text, VoidCallback? onPressed) {
     return Container(
       height: 50,

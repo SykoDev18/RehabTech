@@ -1,7 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:rehabtech/presentation/providers/theme_provider.dart';
@@ -17,11 +19,25 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final ProgressService _progressService = ProgressService();
   late UserProfile _profile;
+  String? _patientId;
   
   @override
   void initState() {
     super.initState();
     _profile = _progressService.userProfile;
+    _loadPatientId();
+  }
+
+  Future<void> _loadPatientId() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      if (mounted && doc.exists) {
+        setState(() {
+          _patientId = doc.data()?['patientId'];
+        });
+      }
+    }
   }
   
   void _refreshProfile() {
@@ -264,15 +280,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       email,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
-                    if (_profile.condition.isNotEmpty) ...[
+                    if (_patientId != null) ...[
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: _patientId!));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('ID copiado al portapapeles'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(LucideIcons.hash, color: Colors.white, size: 12),
+                              const SizedBox(width: 4),
+                              Text(
+                                'ID: $_patientId',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(LucideIcons.copy, color: Colors.white, size: 12),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ] else if (_profile.condition.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
