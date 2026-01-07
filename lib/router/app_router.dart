@@ -48,7 +48,7 @@ class AppRouter {
         return _cachedUserType;
       }
     } catch (e) {
-      debugPrint('Error getting user type: $e');
+      // Error logged silently - user defaults to patient
     }
     return 'patient';
   }

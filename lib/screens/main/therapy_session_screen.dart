@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:rehabtech/core/utils/logger.dart';
 import 'package:rehabtech/models/exercise.dart';
 import 'package:rehabtech/screens/main/session_report_screen.dart';
 import 'package:rehabtech/services/progress_service.dart';
@@ -82,8 +83,8 @@ class _TherapySessionScreenState extends State<TherapySessionScreen> {
           });
         }
       }
-    } catch (e) {
-      print('Error al inicializar cámara: $e');
+    } catch (e, st) {
+      AppLogger.error('Error al inicializar cámara', error: e, stackTrace: st, tag: 'TherapySession');
     }
   }
 
@@ -158,8 +159,8 @@ Reglas:
       if (response.text != null && mounted) {
         _addAiMessage(response.text!);
       }
-    } catch (e) {
-      print('Error al obtener consejo de IA: $e');
+    } catch (e, st) {
+      AppLogger.warning('Error al obtener consejo de IA', data: {'error': e.toString()}, tag: 'TherapySession');
     } finally {
       if (mounted) {
         setState(() {

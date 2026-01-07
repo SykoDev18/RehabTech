@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:rehabtech/core/utils/logger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -175,7 +176,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
   Future<void> _initializeChat() async {
     if (_apiKey == 'NO_SE_ENCONTRO_LA_KEY') {
-      print('¡ERROR! No se pudo cargar la GEMINI_API_KEY desde el .env');
+      AppLogger.error('No se pudo cargar GEMINI_API_KEY desde .env', tag: 'NoraChat');
     }
 
     _model = GenerativeModel(
@@ -468,8 +469,8 @@ Tu función es:
           _messages.add(errorMessage);
         });
       }
-    } catch (e) {
-      print('Error al enviar mensaje: $e');
+    } catch (e, st) {
+      AppLogger.error('Error al enviar mensaje a Nora', error: e, stackTrace: st, tag: 'NoraChat');
       String errorMsg = 'Oops, algo salió mal. Intenta de nuevo.';
       if (e.toString().contains('API key')) {
         errorMsg = 'Error de API key. Verifica tu configuración.';
