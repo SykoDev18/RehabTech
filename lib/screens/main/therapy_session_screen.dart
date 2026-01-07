@@ -92,7 +92,7 @@ class _TherapySessionScreenState extends State<TherapySessionScreen> {
     final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
     if (apiKey.isNotEmpty) {
       _model = GenerativeModel(
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         apiKey: apiKey,
       );
       _chatSession = _model.startChat(
