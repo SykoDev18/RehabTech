@@ -220,107 +220,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileCard(String name, String email) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
-                ),
-                child: _profile.photoUrl.isNotEmpty
-                    ? ClipOval(
-                        child: Image.network(
-                          _profile.photoUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            LucideIcons.user,
-                            color: Colors.white,
-                            size: 35,
-                          ),
-                        ),
-                      )
-                    : const Icon(
-                        LucideIcons.user,
-                        color: Colors.white,
-                        size: 35,
-                      ),
+    return GestureDetector(
+      onTap: () => _showUserDataModal(name, email),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      email,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                    if (_patientId != null) ...[
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: _patientId!));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('ID copiado al portapapeles'),
-                              duration: Duration(seconds: 2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+                  ),
+                  child: _profile.photoUrl.isNotEmpty
+                      ? ClipOval(
+                          child: Image.network(
+                            _profile.photoUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              LucideIcons.user,
+                              color: Colors.white,
+                              size: 35,
                             ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(LucideIcons.hash, color: Colors.white, size: 12),
-                              const SizedBox(width: 4),
-                              Text(
-                                'ID: $_patientId',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(LucideIcons.copy, color: Colors.white, size: 12),
-                            ],
-                          ),
+                        )
+                      : const Icon(
+                          LucideIcons.user,
+                          color: Colors.white,
+                          size: 35,
+                        ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                    ] else if (_profile.condition.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        email,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -328,25 +292,356 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(
-                          _profile.condition,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(LucideIcons.idCard, color: Colors.white, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Ver mis datos',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
+                  ),
+                ),
+                Icon(
+                  LucideIcons.chevronRight,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showUserDataModal(String name, String email) {
+    final user = FirebaseAuth.instance.currentUser;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: _profile.photoUrl.isNotEmpty
+                        ? ClipOval(
+                            child: Image.network(
+                              _profile.photoUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                LucideIcons.user,
+                                color: Colors.white,
+                                size: 30,
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            LucideIcons.user,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Mis Datos',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                        Text(
+                          'Información de tu cuenta',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(LucideIcons.x, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    // ID de Paciente (destacado)
+                    if (_patientId != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(LucideIcons.qrCode, color: Colors.white, size: 40),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Tu ID de Paciente',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _patientId!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildIdActionButton(
+                                  icon: LucideIcons.copy,
+                                  label: 'Copiar',
+                                  onTap: () {
+                                    Clipboard.setData(ClipboardData(text: _patientId!));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('ID copiado al portapapeles'),
+                                        backgroundColor: Color(0xFF22C55E),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 12),
+                                _buildIdActionButton(
+                                  icon: LucideIcons.share2,
+                                  label: 'Compartir',
+                                  onTap: () {
+                                    // Share functionality
+                                    Clipboard.setData(ClipboardData(
+                                      text: 'Mi ID de paciente en RehabTech es: $_patientId\n\nÚsalo para conectarte conmigo como terapeuta.',
+                                    ));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Texto copiado para compartir'),
+                                        backgroundColor: Color(0xFF22C55E),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(LucideIcons.info, color: Colors.white.withValues(alpha: 0.8), size: 14),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Comparte este ID con tu terapeuta',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.9),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    // Datos del usuario
+                    _buildDataItem(
+                      icon: LucideIcons.user,
+                      label: 'Nombre completo',
+                      value: name.isNotEmpty ? name : 'No especificado',
+                    ),
+                    _buildDataItem(
+                      icon: LucideIcons.mail,
+                      label: 'Correo electrónico',
+                      value: email,
+                    ),
+                    if (_profile.phone.isNotEmpty)
+                      _buildDataItem(
+                        icon: LucideIcons.phone,
+                        label: 'Teléfono',
+                        value: _profile.phone,
+                      ),
+                    if (_profile.birthDate.isNotEmpty)
+                      _buildDataItem(
+                        icon: LucideIcons.calendar,
+                        label: 'Fecha de nacimiento',
+                        value: _profile.birthDate,
+                      ),
+                    if (_profile.condition.isNotEmpty)
+                      _buildDataItem(
+                        icon: LucideIcons.heartPulse,
+                        label: 'Condición/Diagnóstico',
+                        value: _profile.condition,
+                      ),
+                    if (_profile.therapistName.isNotEmpty)
+                      _buildDataItem(
+                        icon: LucideIcons.stethoscope,
+                        label: 'Terapeuta asignado',
+                        value: _profile.therapistName,
+                      ),
+                    _buildDataItem(
+                      icon: LucideIcons.shield,
+                      label: 'ID de cuenta',
+                      value: user?.uid ?? 'No disponible',
+                      isSmall: true,
+                    ),
                   ],
                 ),
               ),
-              Icon(
-                LucideIcons.chevronRight,
-                color: Colors.white.withOpacity(0.7),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildIdActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataItem({
+    required IconData icon,
+    required String label,
+    required String value,
+    bool isSmall = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xFF3B82F6), size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: isSmall ? 12 : 15,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF111827),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
