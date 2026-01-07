@@ -7,6 +7,7 @@ import 'package:rehabtech/core/utils/logger.dart';
 import 'package:rehabtech/models/exercise.dart';
 import 'package:rehabtech/screens/main/session_report_screen.dart';
 import 'package:rehabtech/services/progress_service.dart';
+import 'package:rehabtech/services/pose_detection_service.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -22,8 +23,18 @@ class TherapySessionScreen extends StatefulWidget {
 class _TherapySessionScreenState extends State<TherapySessionScreen> {
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
+  CameraDescription? _currentCamera;
   bool _isCameraInitialized = false;
   bool _isPaused = false;
+  
+  // Detección de poses
+  final PoseDetectionService _poseService = PoseDetectionService();
+  bool _isPoseDetectionEnabled = true;
+  bool _isProcessingFrame = false;
+  String _poseStatus = 'Iniciando detección...';
+  double _currentAngle = 0;
+  double _poseConfidence = 0;
+  List<String> _formCorrections = [];
   
   // Contadores
   int _currentRep = 0;
@@ -54,10 +65,57 @@ class _TherapySessionScreenState extends State<TherapySessionScreen> {
   @override
   void initState() {
     super.initState();
+    _initializePoseDetection();
     _initializeCamera();
     _initializeAI();
     _startTimer();
     _scheduleAiTips();
+  }
+
+  Future<void> _initializePoseDetection() async {
+    try {
+      await _poseService.initialize();
+      
+      // Configurar el tipo de ejercicio
+      final exerciseType = PoseDetectionService.getExerciseType(widget.exercise.title);
+      _poseService.setExercise(exerciseType);
+      
+      // Configurar callbacks
+      _poseService.onRepCompleted = (repCount) {
+        if (mounted) {
+          setState(() {
+            _currentRep = repCount;
+          });
+          
+          // Feedback automático
+          if (_currentRep == widget.exercise.reps ~/ 2) {
+            _addAiMessage('¡Mitad de camino! Sigue así 🔥');
+            _feedbackGood.add('Mantuviste un buen ritmo hasta la mitad');
+          } else if (_currentRep >= widget.exercise.reps) {
+            _addAiMessage('¡Serie completada! Excelente trabajo 🎉');
+            _feedbackGood.add('Completaste todas las repeticiones');
+          }
+        }
+      };
+      
+      _poseService.onFeedback = (feedback) {
+        if (mounted && !_isPaused) {
+          _addAiMessage(feedback);
+        }
+      };
+      
+      AppLogger.info('Detección de poses inicializada', 
+        data: {'ejercicio': widget.exercise.title, 'tipo': exerciseType.name}, 
+        tag: 'PoseDetection');
+        
+    } catch (e, st) {
+      AppLogger.error('Error al inicializar detección de poses', 
+        error: e, stackTrace: st, tag: 'PoseDetection');
+      setState(() {
+        _isPoseDetectionEnabled = false;
+        _poseStatus = 'Detección no disponible';
+      });
+    }
   }
 
   Future<void> _initializeCamera() async {
@@ -65,18 +123,25 @@ class _TherapySessionScreenState extends State<TherapySessionScreen> {
       _cameras = await availableCameras();
       if (_cameras != null && _cameras!.isNotEmpty) {
         // Usar cámara frontal si está disponible
-        final frontCamera = _cameras!.firstWhere(
+        _currentCamera = _cameras!.firstWhere(
           (camera) => camera.lensDirection == CameraLensDirection.front,
           orElse: () => _cameras!.first,
         );
         
         _cameraController = CameraController(
-          frontCamera,
+          _currentCamera!,
           ResolutionPreset.medium,
           enableAudio: false,
+          imageFormatGroup: ImageFormatGroup.nv21, // Formato compatible con ML Kit
         );
         
         await _cameraController!.initialize();
+        
+        // Iniciar streaming de frames para detección de poses
+        if (_isPoseDetectionEnabled) {
+          await _cameraController!.startImageStream(_processFrame);
+        }
+        
         if (mounted) {
           setState(() {
             _isCameraInitialized = true;
@@ -85,6 +150,46 @@ class _TherapySessionScreenState extends State<TherapySessionScreen> {
       }
     } catch (e, st) {
       AppLogger.error('Error al inicializar cámara', error: e, stackTrace: st, tag: 'TherapySession');
+    }
+  }
+
+  Future<void> _processFrame(CameraImage image) async {
+    if (_isProcessingFrame || _isPaused || !_isPoseDetectionEnabled || _currentCamera == null) {
+      return;
+    }
+
+    _isProcessingFrame = true;
+
+    try {
+      final result = await _poseService.processFrame(image, _currentCamera!);
+      
+      if (result != null && mounted) {
+        setState(() {
+          _poseStatus = result.feedback;
+          _currentAngle = result.primaryAngle;
+          _poseConfidence = result.confidence;
+          _formCorrections = result.corrections;
+          
+          // Actualizar rep count desde el servicio
+          if (_poseService.repCount > _currentRep) {
+            _currentRep = _poseService.repCount;
+          }
+        });
+        
+        // Mostrar correcciones de forma
+        if (result.corrections.isNotEmpty && _formCorrections != result.corrections) {
+          for (final correction in result.corrections) {
+            _addAiMessage('⚠️ $correction');
+            if (!_feedbackImprove.contains(correction)) {
+              _feedbackImprove.add(correction);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignorar errores de procesamiento de frames individuales
+    } finally {
+      _isProcessingFrame = false;
     }
   }
 
@@ -192,6 +297,7 @@ Reglas:
     }
   }
 
+  /// Incrementa manualmente la repetición (backup si la detección falla)
   void _incrementRep() {
     if (_currentRep < widget.exercise.reps) {
       setState(() {
@@ -211,6 +317,25 @@ Reglas:
         _addAiMessage('¡Serie completada! Excelente trabajo 🎉');
         _feedbackGood.add('Completaste todas las repeticiones');
       }
+    }
+  }
+
+  /// Toggle para activar/desactivar la detección de poses
+  void _togglePoseDetection() {
+    setState(() {
+      _isPoseDetectionEnabled = !_isPoseDetectionEnabled;
+    });
+    
+    if (_isPoseDetectionEnabled) {
+      _addAiMessage('🎯 Detección automática activada');
+      // Reiniciar streaming si estaba pausado
+      if (_cameraController != null && _currentCamera != null) {
+        _cameraController!.startImageStream(_processFrame);
+      }
+    } else {
+      _addAiMessage('✋ Modo manual - toca para contar');
+      // Detener streaming
+      _cameraController?.stopImageStream();
     }
   }
 
@@ -506,7 +631,9 @@ Reglas:
   @override
   void dispose() {
     _timer?.cancel();
+    _cameraController?.stopImageStream();
     _cameraController?.dispose();
+    _poseService.dispose();
     super.dispose();
   }
 
@@ -633,23 +760,32 @@ Reglas:
                     ),
                   ),
 
+                // Indicador de detección de poses
+                if (_isPoseDetectionEnabled)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: _buildPoseDetectionIndicator(),
+                  ),
+
                 const Spacer(),
 
-                // Botón para contar repetición (toca la pantalla)
+                // Área táctil para contar repetición manual (solo si detección está desactivada)
                 GestureDetector(
-                  onTap: _incrementRep,
+                  onTap: !_isPoseDetectionEnabled ? _incrementRep : null,
                   child: Container(
                     color: Colors.transparent,
-                    height: 200,
+                    height: 150,
                     width: double.infinity,
                     child: Center(
-                      child: Text(
-                        'Toca para contar rep',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
-                          fontSize: 14,
-                        ),
-                      ),
+                      child: !_isPoseDetectionEnabled
+                          ? Text(
+                              'Toca para contar rep',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.5),
+                                fontSize: 14,
+                              ),
+                            )
+                          : null,
                     ),
                   ),
                 ),
@@ -663,14 +799,14 @@ Reglas:
                       filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
+                          horizontal: 20,
                           vertical: 12,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(30),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                           ),
                         ),
                         child: Row(
@@ -682,14 +818,21 @@ Reglas:
                               onTap: _togglePause,
                               color: Colors.white,
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 12),
+                            // Botón Toggle Detección
+                            _buildControlButton(
+                              icon: _isPoseDetectionEnabled ? LucideIcons.scan : LucideIcons.hand,
+                              onTap: _togglePoseDetection,
+                              color: _isPoseDetectionEnabled ? const Color(0xFF22C55E) : Colors.orange,
+                            ),
+                            const SizedBox(width: 12),
                             // Botón Asistente IA
                             _buildControlButton(
                               icon: LucideIcons.sparkles,
                               onTap: _askAiForHelp,
                               color: Colors.white,
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 12),
                             // Botón Cancelar
                             _buildControlButton(
                               icon: LucideIcons.x,
@@ -878,10 +1021,148 @@ Reglas:
         width: 50,
         height: 50,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color, size: 24),
+      ),
+    );
+  }
+
+  /// Widget para mostrar el estado de la detección de poses
+  Widget _buildPoseDetectionIndicator() {
+    final confidencePercent = (_poseConfidence * 100).toStringAsFixed(0);
+    final angleText = _currentAngle > 0 ? '${_currentAngle.toStringAsFixed(0)}°' : '--';
+    
+    Color statusColor;
+    if (_poseConfidence > 0.7) {
+      statusColor = const Color(0xFF22C55E); // Verde
+    } else if (_poseConfidence > 0.4) {
+      statusColor = const Color(0xFFF59E0B); // Amarillo
+    } else {
+      statusColor = const Color(0xFFEF4444); // Rojo
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header con estado
+              Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: statusColor.withValues(alpha: 0.5),
+                          blurRadius: 6,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Detección Activa',
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  // Ángulo actual
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      angleText,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Barra de confianza
+              Row(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: _poseConfidence,
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                        valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                        minHeight: 6,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$confidencePercent%',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Estado del movimiento
+              Text(
+                _poseStatus,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              // Correcciones de forma (si las hay)
+              if (_formCorrections.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(LucideIcons.triangleAlert, color: Colors.orange, size: 14),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _formCorrections.first,
+                        style: const TextStyle(
+                          color: Colors.orange,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
