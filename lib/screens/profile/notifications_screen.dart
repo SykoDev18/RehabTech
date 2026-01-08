@@ -80,7 +80,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(LucideIcons.arrowLeft, size: 22),
@@ -119,7 +119,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         if (_dailyReminder) ...[
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Divider(color: Colors.grey.withOpacity(0.2)),
+                            child: Divider(color: Colors.grey.withValues(alpha: 0.2)),
                           ),
                           ListTile(
                             contentPadding: const EdgeInsets.symmetric(
@@ -129,7 +129,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             leading: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF3B82F6).withOpacity(0.1),
+                                color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(
@@ -258,9 +258,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
           ),
           child: Column(
             children: children.asMap().entries.map((entry) {
@@ -274,7 +274,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Divider(
                         height: 1,
-                        color: Colors.grey.withOpacity(0.2),
+                        color: Colors.grey.withValues(alpha: 0.2),
                       ),
                     ),
                 ],
@@ -298,7 +298,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF3B82F6).withOpacity(0.1),
+          color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: const Color(0xFF3B82F6), size: 22),

@@ -141,7 +141,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -156,7 +156,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                   gradient: LinearGradient(
                     colors: [
                       const Color(0xFFEFF6FF),
-                      const Color(0xFFE0E7FF).withOpacity(0.5),
+                      const Color(0xFFE0E7FF).withValues(alpha: 0.5),
                     ],
                   ),
                   borderRadius: const BorderRadius.only(
@@ -336,7 +336,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
         gradient: LinearGradient(
           colors: [
             Colors.grey[50]!,
-            Colors.blue[50]!.withOpacity(0.3),
+            Colors.blue[50]!.withValues(alpha: 0.3),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
@@ -788,7 +788,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                       borderRadius: BorderRadius.circular(25),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF3B82F6).withOpacity(0.3),
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
                           blurRadius: 12,
                           offset: const Offset(0, 6),
                         ),

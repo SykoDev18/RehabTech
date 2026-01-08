@@ -20,9 +20,11 @@ class AppCheckService {
     try {
       await FirebaseAppCheck.instance.activate(
         // Debug provider para desarrollo
+        // ignore: deprecated_member_use
         androidProvider: kDebugMode 
             ? AndroidProvider.debug 
             : AndroidProvider.playIntegrity,
+        // ignore: deprecated_member_use
         appleProvider: kDebugMode 
             ? AppleProvider.debug 
             : AppleProvider.deviceCheck,

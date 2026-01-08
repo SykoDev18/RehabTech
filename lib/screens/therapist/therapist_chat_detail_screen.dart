@@ -82,7 +82,7 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             border: Border(
               bottom: BorderSide(color: Colors.grey[200]!),
             ),
@@ -150,7 +150,7 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.grey[200]?.withOpacity(0.6),
+        color: Colors.grey[200]?.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -248,7 +248,7 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 5,
               offset: const Offset(0, 2),
             ),
@@ -269,7 +269,7 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
               timeStr,
               style: TextStyle(
                 fontSize: 10,
-                color: isMe ? Colors.white.withOpacity(0.7) : Colors.grey[500],
+                color: isMe ? Colors.white.withValues(alpha: 0.7) : Colors.grey[500],
               ),
             ),
           ],
@@ -285,7 +285,7 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

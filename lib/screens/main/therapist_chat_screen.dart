@@ -134,9 +134,9 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(8, 8, 16, 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             border: Border(
-              bottom: BorderSide(color: Colors.white.withOpacity(0.3)),
+              bottom: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
             ),
           ),
           child: Row(
@@ -233,7 +233,7 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB).withOpacity(0.1),
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -246,7 +246,7 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6B7280).withOpacity(0.1),
+                  color: const Color(0xFF6B7280).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -322,7 +322,7 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
                             end: Alignment.centerRight,
                           )
                         : null,
-                    color: message.isMe ? null : Colors.white.withOpacity(0.7),
+                    color: message.isMe ? null : Colors.white.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(18),
                       topRight: const Radius.circular(18),
@@ -331,7 +331,7 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
                     ),
                     border: message.isMe 
                         ? null 
-                        : Border.all(color: Colors.white.withOpacity(0.5)),
+                        : Border.all(color: Colors.white.withValues(alpha: 0.5)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -350,7 +350,7 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           color: message.isMe 
-                              ? Colors.white.withOpacity(0.7) 
+                              ? Colors.white.withValues(alpha: 0.7) 
                               : const Color(0xFF9CA3AF),
                         ),
                       ),
@@ -377,9 +377,9 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
             12 + MediaQuery.of(context).padding.bottom,
           ),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             border: Border(
-              top: BorderSide(color: Colors.white.withOpacity(0.3)),
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
             ),
           ),
           child: Row(
@@ -440,7 +440,7 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF2563EB).withOpacity(0.3),
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),

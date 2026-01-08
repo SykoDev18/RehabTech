@@ -108,7 +108,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -227,7 +227,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       color: isToday
                           ? const Color(0xFF3B82F6)
                           : hasAppointment
-                              ? const Color(0xFFF97316).withOpacity(0.2)
+                              ? const Color(0xFFF97316).withValues(alpha: 0.2)
                               : isSelected
                                   ? Colors.blue[50]
                                   : null,
@@ -339,7 +339,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),

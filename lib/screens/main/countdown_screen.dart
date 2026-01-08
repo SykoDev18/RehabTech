@@ -101,7 +101,7 @@ class _CountdownScreenState extends State<CountdownScreen>
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
-              color: Colors.black.withOpacity(0.4),
+              color: Colors.black.withValues(alpha: 0.4),
             ),
           ),
           // Contenido centrado
@@ -133,9 +133,9 @@ class _CountdownScreenState extends State<CountdownScreen>
                         child: CircularProgressIndicator(
                           value: 1,
                           strokeWidth: 8,
-                          backgroundColor: Colors.grey.withOpacity(0.3),
+                          backgroundColor: Colors.grey.withValues(alpha: 0.3),
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.grey.withOpacity(0.3),
+                            Colors.grey.withValues(alpha: 0.3),
                           ),
                         ),
                       ),
@@ -166,7 +166,7 @@ class _CountdownScreenState extends State<CountdownScreen>
                           fontWeight: FontWeight.bold,
                           shadows: [
                             Shadow(
-                              color: color.withOpacity(0.5),
+                              color: color.withValues(alpha: 0.5),
                               blurRadius: 20,
                             ),
                           ],
@@ -197,7 +197,7 @@ class _CountdownScreenState extends State<CountdownScreen>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(

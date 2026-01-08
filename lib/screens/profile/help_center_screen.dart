@@ -95,7 +95,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(LucideIcons.arrowLeft, size: 22),
@@ -178,12 +178,12 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
           decoration: BoxDecoration(
             color: isSelected
                 ? const Color(0xFF3B82F6)
-                : Colors.white.withOpacity(0.6),
+                : Colors.white.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSelected
                   ? const Color(0xFF3B82F6)
-                  : Colors.grey.withOpacity(0.3),
+                  : Colors.grey.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -226,12 +226,12 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
             collapsedShape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            backgroundColor: Colors.white.withOpacity(0.6),
-            collapsedBackgroundColor: Colors.white.withOpacity(0.6),
+            backgroundColor: Colors.white.withValues(alpha: 0.6),
+            collapsedBackgroundColor: Colors.white.withValues(alpha: 0.6),
             leading: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF3B82F6).withOpacity(0.1),
+                color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -252,7 +252,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
               margin: const EdgeInsets.only(top: 4),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFF22C55E).withOpacity(0.1),
+                color: const Color(0xFF22C55E).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -290,19 +290,19 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF3B82F6).withOpacity(0.1),
-                const Color(0xFF8B5CF6).withOpacity(0.1),
+                const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                const Color(0xFF8B5CF6).withValues(alpha: 0.1),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.3)),
+            border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
           ),
           child: Column(
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6).withOpacity(0.1),
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(

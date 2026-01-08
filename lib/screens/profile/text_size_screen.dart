@@ -61,7 +61,7 @@ class _TextSizeScreenState extends State<TextSizeScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(LucideIcons.arrowLeft, size: 22),
@@ -94,9 +94,9 @@ class _TextSizeScreenState extends State<TextSizeScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white.withOpacity(0.3)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                             ),
                             child: Column(
                               children: [
@@ -117,7 +117,7 @@ class _TextSizeScreenState extends State<TextSizeScreen> {
                                         vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF3B82F6).withOpacity(0.1),
+                                        color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(
@@ -148,7 +148,7 @@ class _TextSizeScreenState extends State<TextSizeScreen> {
                                           activeTrackColor: const Color(0xFF3B82F6),
                                           inactiveTrackColor: Colors.grey[200],
                                           thumbColor: const Color(0xFF3B82F6),
-                                          overlayColor: const Color(0xFF3B82F6).withOpacity(0.2),
+                                          overlayColor: const Color(0xFF3B82F6).withValues(alpha: 0.2),
                                           trackHeight: 6,
                                           thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
                                         ),
@@ -199,9 +199,9 @@ class _TextSizeScreenState extends State<TextSizeScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white.withOpacity(0.3)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,7 +231,7 @@ class _TextSizeScreenState extends State<TextSizeScreen> {
                                         vertical: 6 * _textSize,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF22C55E).withOpacity(0.1),
+                                        color: const Color(0xFF22C55E).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(
@@ -250,7 +250,7 @@ class _TextSizeScreenState extends State<TextSizeScreen> {
                                         vertical: 6 * _textSize,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF3B82F6).withOpacity(0.1),
+                                        color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(

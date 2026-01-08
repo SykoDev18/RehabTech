@@ -60,8 +60,8 @@ class _HighContrastScreenState extends State<HighContrastScreen> {
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: _highContrastEnabled
-                              ? Colors.white.withOpacity(0.1)
-                              : Colors.white.withOpacity(0.6),
+                              ? Colors.white.withValues(alpha: 0.1)
+                              : Colors.white.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(12),
                           border: _highContrastEnabled
                               ? Border.all(color: Colors.white)
@@ -100,12 +100,12 @@ class _HighContrastScreenState extends State<HighContrastScreen> {
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           color: _highContrastEnabled
-                              ? Colors.white.withOpacity(0.1)
-                              : Colors.white.withOpacity(0.6),
+                              ? Colors.white.withValues(alpha: 0.1)
+                              : Colors.white.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(20),
                           border: _highContrastEnabled
                               ? Border.all(color: Colors.white, width: 2)
-                              : Border.all(color: Colors.white.withOpacity(0.3)),
+                              : Border.all(color: Colors.white.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
@@ -114,7 +114,7 @@ class _HighContrastScreenState extends State<HighContrastScreen> {
                               decoration: BoxDecoration(
                                 color: _highContrastEnabled
                                     ? Colors.yellow
-                                    : const Color(0xFF3B82F6).withOpacity(0.1),
+                                    : const Color(0xFF3B82F6).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
@@ -185,12 +185,12 @@ class _HighContrastScreenState extends State<HighContrastScreen> {
                         decoration: BoxDecoration(
                           color: _highContrastEnabled
                               ? Colors.black
-                              : Colors.white.withOpacity(0.6),
+                              : Colors.white.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: _highContrastEnabled
                                 ? Colors.yellow
-                                : Colors.white.withOpacity(0.3),
+                                : Colors.white.withValues(alpha: 0.3),
                             width: _highContrastEnabled ? 2 : 1,
                           ),
                         ),
@@ -253,13 +253,13 @@ class _HighContrastScreenState extends State<HighContrastScreen> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: _highContrastEnabled
-                              ? Colors.yellow.withOpacity(0.1)
-                              : const Color(0xFF3B82F6).withOpacity(0.1),
+                              ? Colors.yellow.withValues(alpha: 0.1)
+                              : const Color(0xFF3B82F6).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: _highContrastEnabled
-                                ? Colors.yellow.withOpacity(0.3)
-                                : const Color(0xFF3B82F6).withOpacity(0.3),
+                                ? Colors.yellow.withValues(alpha: 0.3)
+                                : const Color(0xFF3B82F6).withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(

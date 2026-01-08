@@ -66,7 +66,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
           child: BottomNavigationBar(
-            backgroundColor: Colors.white.withOpacity(0.40),
+            backgroundColor: Colors.white.withValues(alpha: 0.40),
             elevation: 0,
             type: BottomNavigationBarType.fixed,
             selectedItemColor: activeColor,

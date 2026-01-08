@@ -83,7 +83,7 @@ class SessionReportScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
@@ -184,9 +184,9 @@ class SessionReportScreen extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
           ),
           child: Column(
             children: [
@@ -204,7 +204,7 @@ class SessionReportScreen extends StatelessWidget {
                         value: completionPercentage / 100,
                         strokeWidth: 12,
                         strokeCap: StrokeCap.round,
-                        backgroundColor: Colors.grey.withOpacity(0.2),
+                        backgroundColor: Colors.grey.withValues(alpha: 0.2),
                         valueColor: AlwaysStoppedAnimation<Color>(performanceColor),
                       ),
                     ),
@@ -236,7 +236,7 @@ class SessionReportScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                  color: performanceColor.withOpacity(0.1),
+                  color: performanceColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -274,9 +274,9 @@ class SessionReportScreen extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -290,7 +290,7 @@ class SessionReportScreen extends StatelessWidget {
               Container(
                 width: 1,
                 height: 50,
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
               ),
               _buildStatItem(
                 icon: LucideIcons.repeat,
@@ -301,7 +301,7 @@ class SessionReportScreen extends StatelessWidget {
               Container(
                 width: 1,
                 height: 50,
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
               ),
               _buildStatItem(
                 icon: LucideIcons.flame,
@@ -357,9 +357,9 @@ class SessionReportScreen extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,8 +451,8 @@ class SessionReportScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: improvement >= 0
-                      ? const Color(0xFF22C55E).withOpacity(0.1)
-                      : const Color(0xFFEF4444).withOpacity(0.1),
+                      ? const Color(0xFF22C55E).withValues(alpha: 0.1)
+                      : const Color(0xFFEF4444).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -495,9 +495,9 @@ class SessionReportScreen extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,15 +562,15 @@ class SessionReportScreen extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF3B82F6).withOpacity(0.1),
-                const Color(0xFF22D3EE).withOpacity(0.1),
+                const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                const Color(0xFF22D3EE).withValues(alpha: 0.1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: const Color(0xFF3B82F6).withOpacity(0.3),
+              color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
             ),
           ),
           child: Column(
@@ -647,7 +647,7 @@ class SessionReportScreen extends StatelessWidget {
                   colors: [Color(0xFF3B82F6), Color(0xFF22D3EE)],
                 )
               : null,
-          color: isPrimary ? null : Colors.white.withOpacity(0.6),
+          color: isPrimary ? null : Colors.white.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(16),
           border: isPrimary ? null : Border.all(color: const Color(0xFF3B82F6)),
         ),

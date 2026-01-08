@@ -371,7 +371,7 @@ Reglas:
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _getPainColor(painLevel).withOpacity(0.1),
+                  color: _getPainColor(painLevel).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -435,7 +435,7 @@ Reglas:
                   activeTrackColor: _getPainColor(painLevel),
                   inactiveTrackColor: Colors.grey[200],
                   thumbColor: _getPainColor(painLevel),
-                  overlayColor: _getPainColor(painLevel).withOpacity(0.2),
+                  overlayColor: _getPainColor(painLevel).withValues(alpha: 0.2),
                   trackHeight: 8,
                   thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 14),
                 ),
@@ -697,10 +697,10 @@ Reglas:
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
+                                  color: Colors.white.withValues(alpha: 0.3),
                                 ),
                               ),
                               child: Column(
@@ -855,7 +855,7 @@ Reglas:
           // Overlay de pausa
           if (_isPaused)
             Container(
-              color: Colors.black.withOpacity(0.7),
+              color: Colors.black.withValues(alpha: 0.7),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -909,7 +909,7 @@ Reglas:
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: bgColor.withOpacity(0.7),
+            color: bgColor.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -933,7 +933,7 @@ Reglas:
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF111827).withOpacity(0.7),
+            color: const Color(0xFF111827).withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -974,9 +974,9 @@ Reglas:
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: [

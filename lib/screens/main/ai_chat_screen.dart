@@ -101,9 +101,9 @@ class _TypingIndicatorState extends State<TypingIndicator> with SingleTickerProv
         margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 0.0),
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.7),
+          color: Colors.white.withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(20.0),
-          border: Border.all(color: Colors.white.withOpacity(0.6)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -513,7 +513,7 @@ Tu función es:
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
             child: Container(
-              color: Colors.white.withOpacity(0.60),
+              color: Colors.white.withValues(alpha: 0.60),
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: SafeArea(
                 child: Row(
@@ -631,7 +631,7 @@ Tu función es:
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF9333EA).withOpacity(0.1),
+                          color: const Color(0xFF9333EA).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
@@ -679,9 +679,9 @@ Tu función es:
                       margin: const EdgeInsets.only(bottom: 20.0),
                       padding: const EdgeInsets.all(12.0),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100]!.withOpacity(0.80),
+                        color: Colors.grey[100]!.withValues(alpha: 0.80),
                         borderRadius: BorderRadius.circular(16.0),
-                        border: Border.all(color: Colors.grey[200]!.withOpacity(0.60)),
+                        border: Border.all(color: Colors.grey[200]!.withValues(alpha: 0.60)),
                       ),
                       child: Text(
                         message.text,
@@ -717,9 +717,9 @@ Tu función es:
                             margin: const EdgeInsets.symmetric(vertical: 6.0),
                             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.40),
+                              color: Colors.white.withValues(alpha: 0.40),
                               borderRadius: BorderRadius.circular(20.0),
-                              border: Border.all(color: Colors.white.withOpacity(0.60)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
                             ),
                             child: Text(
                               message.text,
@@ -738,7 +738,7 @@ Tu función es:
                 filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  color: Colors.white.withOpacity(0.40),
+                  color: Colors.white.withValues(alpha: 0.40),
                   child: SafeArea(
                     top: false,
                     child: Row(
@@ -749,7 +749,7 @@ Tu función es:
                             style: const TextStyle(color: Color(0xFF111827), fontSize: 16),
                             decoration: InputDecoration(
                               filled: true,
-                              fillColor: Colors.white.withOpacity(0.60),
+                              fillColor: Colors.white.withValues(alpha: 0.60),
                               hintText: 'Escribe tu mensaje...',
                               hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                               border: OutlineInputBorder(
@@ -891,11 +891,11 @@ Tu función es:
                           margin: const EdgeInsets.only(bottom: 8),
                           decoration: BoxDecoration(
                             color: isCurrentChat 
-                                ? const Color(0xFF9333EA).withOpacity(0.1)
+                                ? const Color(0xFF9333EA).withValues(alpha: 0.1)
                                 : Colors.grey[50],
                             borderRadius: BorderRadius.circular(12),
                             border: isCurrentChat 
-                                ? Border.all(color: const Color(0xFF9333EA).withOpacity(0.3))
+                                ? Border.all(color: const Color(0xFF9333EA).withValues(alpha: 0.3))
                                 : null,
                           ),
                           child: ListTile(

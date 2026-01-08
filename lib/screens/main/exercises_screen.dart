@@ -124,7 +124,7 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
                   style: const TextStyle(color: Color(0xFF111827), fontSize: 16),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.60),
+                    fillColor: Colors.white.withValues(alpha: 0.60),
                     hintText: 'Búsqueda por nombre, parte del cuerpo',
                     hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
                     prefixIcon: Padding(
@@ -180,11 +180,11 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
                                 colors: [Color(0xFF3B82F6), Color(0xFF22D3EE)],
                               )
                             : null,
-                        color: isSelected ? null : Colors.white.withOpacity(0.6),
+                        color: isSelected ? null : Colors.white.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(20),
                         border: isSelected
                             ? null
-                            : Border.all(color: Colors.white.withOpacity(0.3)),
+                            : Border.all(color: Colors.white.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         filter,

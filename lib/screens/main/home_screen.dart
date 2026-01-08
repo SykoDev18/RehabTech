@@ -155,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.6),
+                  color: Colors.white.withValues(alpha: 0.6),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
@@ -206,9 +206,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           padding: const EdgeInsets.all(24.0),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.40),
+            color: Colors.white.withValues(alpha: 0.40),
             borderRadius: BorderRadius.circular(20.0),
-            border: Border.all(color: Colors.white.withOpacity(0.60)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(14.0),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF2563EB).withOpacity(0.3),
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -382,9 +382,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           padding: const EdgeInsets.all(24.0),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.40),
+            color: Colors.white.withValues(alpha: 0.40),
             borderRadius: BorderRadius.circular(20.0),
-            border: Border.all(color: Colors.white.withOpacity(0.60)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,9 +553,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           padding: const EdgeInsets.all(24.0),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.40),
+            color: Colors.white.withValues(alpha: 0.40),
             borderRadius: BorderRadius.circular(20.0),
-            border: Border.all(color: Colors.white.withOpacity(0.60)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -619,7 +619,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
