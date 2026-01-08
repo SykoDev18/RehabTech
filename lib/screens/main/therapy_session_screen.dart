@@ -631,7 +631,10 @@ Reglas:
   @override
   void dispose() {
     _timer?.cancel();
-    _cameraController?.stopImageStream();
+    // Solo detener el stream si la cámara está activa y transmitiendo
+    if (_cameraController != null && _cameraController!.value.isStreamingImages) {
+      _cameraController!.stopImageStream();
+    }
     _cameraController?.dispose();
     _poseService.dispose();
     super.dispose();

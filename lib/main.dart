@@ -64,15 +64,19 @@ class MyApp extends StatelessWidget {
       create: (_) => ThemeProvider(),
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
-          return ErrorListener(
-            child: MaterialApp.router(
-              title: 'RehabTech',
-              debugShowCheckedModeBanner: false,
-              theme: ThemeProvider.lightTheme,
-              darkTheme: ThemeProvider.darkTheme,
-              themeMode: themeProvider.themeMode,
-              routerConfig: AppRouter.router,
-            ),
+          return MaterialApp.router(
+            title: 'RehabTech',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeProvider.lightTheme,
+            darkTheme: ThemeProvider.darkTheme,
+            themeMode: themeProvider.themeMode,
+            routerConfig: AppRouter.router,
+            builder: (context, child) {
+              // ErrorListener debe estar dentro de MaterialApp para tener acceso a ScaffoldMessenger
+              return ErrorListener(
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
           );
         },
       ),
