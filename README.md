@@ -13,8 +13,10 @@ RehabTech es una aplicación móvil diseñada para asistir a pacientes en su pro
 - **Asistente IA (Nora)**: Guía inteligente que responde dudas y ofrece retroalimentación
 - **Seguimiento de Progreso**: Estadísticas diarias, semanales y mensuales
 - **Mensajería**: Comunicación con Nora (IA) y tu fisioterapeuta
-- **Sesiones de Terapia con Cámara**: Guía visual durante los ejercicios
+- **Sesiones de Terapia con Cámara**: Guía visual durante los ejercicios con detección de pose
 - **Reportes PDF**: Generación de informes de progreso
+- **Notificaciones Push**: Recordatorios diarios y mensajes del terapeuta
+- **Sistema de Rachas**: Motivación mediante seguimiento de días consecutivos
 
 ### 👨‍⚕️ Módulo Fisioterapeuta
 - **Gestión de Pacientes**: Lista, búsqueda y registro de pacientes
@@ -22,15 +24,33 @@ RehabTech es una aplicación móvil diseñada para asistir a pacientes en su pro
 - **Calendario de Citas**: Programación y visualización de sesiones
 - **Mensajería con Pacientes**: Chat directo con cada paciente
 - **Perfil Profesional**: Datos de contacto, especialidad y estadísticas
+- **Notificaciones a Pacientes**: Envío de recordatorios y alertas
+
+### 🔔 Sistema de Notificaciones
+- **Recordatorios Diarios**: Configurable por hora
+- **Mensajes FCM**: Notificaciones push en tiempo real
+- **Deep Links**: Navegación directa desde notificaciones
+
+### 📊 Analytics
+- **Eventos de Usuario**: Login, registro, ejercicios completados
+- **Métricas de Engagement**: Uso de chat IA, rachas, progreso
+- **Segmentación**: Pacientes activos/inactivos, niveles de dolor
 
 ## 🛠️ Tecnologías
 
-- **Flutter** - Framework de desarrollo multiplataforma
-- **Firebase Auth** - Autenticación de usuarios
-- **Cloud Firestore** - Base de datos en tiempo real
+- **Flutter 3.x** - Framework de desarrollo multiplataforma
+- **Firebase Suite**:
+  - Firebase Auth - Autenticación (email + Google)
+  - Cloud Firestore - Base de datos en tiempo real
+  - Firebase Storage - Almacenamiento de archivos
+  - Firebase Analytics - Métricas y eventos
+  - Firebase Cloud Messaging (FCM) - Notificaciones push
+  - Firebase App Check - Seguridad
 - **Gemini AI** - Motor de inteligencia artificial para Nora
+- **ML Kit Pose Detection** - Detección de pose durante ejercicios
 - **FL Chart** - Visualización de gráficos de progreso
 - **Lucide Icons** - Iconografía moderna
+- **GoRouter** - Navegación declarativa con deep linking
 
 ## 🚀 Instalación
 
@@ -55,7 +75,7 @@ GEMINI_API_KEY=tu_api_key_aqui
 # Asegúrate de tener firebase-tools instalado
 npm install -g firebase-tools
 firebase login
-firebase deploy --only firestore:rules,firestore:indexes
+firebase deploy --only firestore:rules,firestore:indexes --project tu-proyecto
 ```
 
 5. Ejecuta la aplicación
@@ -69,6 +89,9 @@ flutter run
 lib/
 ├── main.dart
 ├── firebase_options.dart
+├── core/
+│   └── utils/
+│       └── logger.dart
 ├── domain/
 │   └── entities/
 │       ├── user_entity.dart
@@ -93,7 +116,9 @@ lib/
 │   │   ├── profile_screen.dart
 │   │   ├── ai_chat_screen.dart
 │   │   ├── therapist_chat_screen.dart
+│   │   ├── countdown_screen.dart
 │   │   ├── therapy_session_screen.dart
+│   │   ├── exercise_detail_screen.dart
 │   │   └── session_report_screen.dart
 │   ├── therapist/                     # Módulo Fisioterapeuta
 │   │   ├── therapist_main_nav_screen.dart
@@ -108,15 +133,38 @@ lib/
 │       ├── edit_profile_screen.dart
 │       ├── security_screen.dart
 │       ├── my_therapist_screen.dart
+│       ├── notifications_screen.dart
 │       └── help_center_screen.dart
 ├── services/
+│   ├── analytics_service.dart         # Firebase Analytics
+│   ├── notification_service.dart      # FCM + Local Notifications
+│   ├── deep_link_service.dart         # Deep linking
 │   ├── progress_service.dart
 │   └── pdf_service.dart
 └── widgets/
-    └── exercise_card.dart
+    ├── exercise_card.dart
+    └── common/
+        ├── common_widgets.dart        # Export barrel
+        ├── error_widget.dart          # Widgets de error reutilizables
+        ├── empty_state_widget.dart    # Estados vacíos
+        └── loading_widget.dart        # Indicadores de carga
 ```
 
-## 🔥 Configuración de Firestore
+## 🔥 Configuración de Firebase
+
+### Colecciones de Firestore
+
+| Colección | Descripción |
+|-----------|-------------|
+| `users` | Datos de usuarios (pacientes y terapeutas) |
+| `routines` | Rutinas de ejercicios |
+| `appointments` | Citas programadas |
+| `conversations` | Chats entre paciente-terapeuta |
+| `fcm_tokens` | Tokens FCM para notificaciones |
+| `sent_notifications` | Historial de notificaciones |
+| `user_streaks` | Rachas de ejercicios |
+| `user_achievements` | Logros desbloqueados |
+| `feedback` | Retroalimentación de usuarios |
 
 ### Índices Requeridos
 La app requiere los siguientes índices compuestos en Firestore:
@@ -124,21 +172,78 @@ La app requiere los siguientes índices compuestos en Firestore:
 | Colección | Campo 1 | Campo 2 |
 |-----------|---------|---------|
 | `routines` | therapistId (Asc) | createdAt (Desc) |
+| `routines` | patientId (Asc) | createdAt (Desc) |
 | `appointments` | therapistId (Asc) | dateTime (Asc) |
+| `appointments` | patientId (Asc) | dateTime (Asc) |
 | `conversations` | therapistId (Asc) | lastMessageAt (Desc) |
+| `conversations` | patientId (Asc) | lastMessageAt (Desc) |
 | `users` | therapistId (Asc) | userType (Asc) |
+| `fcm_tokens` | userId (Asc) | createdAt (Desc) |
+| `sent_notifications` | recipientId (Asc) | createdAt (Desc) |
+| `user_achievements` | userId (Asc) | unlockedAt (Desc) |
 
 Puedes crearlos automáticamente con:
 ```bash
-firebase deploy --only firestore:indexes
+firebase deploy --only firestore:indexes --project tu-proyecto
 ```
+
+## 🔗 Deep Links
+
+La app soporta deep linking para navegación directa:
+
+| URL | Acción |
+|-----|--------|
+| `rehabtech://exercise/{id}` | Abre detalle de ejercicio |
+| `rehabtech://chat/nora` | Abre chat con Nora |
+| `rehabtech://chat/therapist` | Abre chat con terapeuta |
+| `rehabtech://profile` | Abre perfil |
+| `https://rehabtech.app/exercise/{id}` | App Links (Android) |
+
+## 📊 Firebase Analytics - Eventos
+
+| Evento | Descripción |
+|--------|-------------|
+| `login` | Usuario inició sesión |
+| `sign_up` | Usuario se registró |
+| `exercise_started` | Inició un ejercicio |
+| `exercise_completed` | Completó un ejercicio |
+| `exercise_abandoned` | Abandonó un ejercicio |
+| `chat_message` | Envió mensaje a Nora |
+| `streak_achieved` | Alcanzó racha de días |
+| `pain_level_reported` | Reportó nivel de dolor |
+
+Ver [docs/FIREBASE_CONSOLE_GUIDE.md](docs/FIREBASE_CONSOLE_GUIDE.md) para configuración completa.
 
 ## 🎨 Diseño
 
 - **Tema**: Gradiente `blue-100 → green-50 → blue-50`
-- **Tarjetas**: Blancas con bordes redondeados (20px)
+- **Tarjetas**: Glassmorphism con blur y transparencia
+- **Bordes**: Redondeados (16-20px)
 - **Iconos**: Lucide Icons
 - **Fuente**: Sistema (San Francisco / Roboto)
+- **Color Primario**: `#6366F1` (Indigo)
+- **Color Secundario**: `#3B82F6` (Blue)
+
+## 🧪 Testing
+
+```bash
+# Ejecutar todos los tests
+flutter test
+
+# Tests con cobertura
+flutter test --coverage
+
+# Tests específicos
+flutter test test/services/
+flutter test test/widgets/
+```
+
+## 📱 Requisitos
+
+- Flutter SDK >= 3.0.0
+- Dart SDK >= 3.0.0
+- Android: minSdk 21, targetSdk 34
+- iOS: 12.0+
 
 ## 👥 Equipo
 
