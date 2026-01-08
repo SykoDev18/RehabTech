@@ -32,6 +32,17 @@ class AnalyticsService {
     }
   }
 
+  // ==================== EVENTO GENÉRICO ====================
+
+  /// Loguear evento personalizado
+  Future<void> logEvent({
+    required String name,
+    Map<String, Object>? parameters,
+  }) async {
+    await _analytics.logEvent(name: name, parameters: parameters);
+    AppLogger.debug('Analytics: $name', tag: 'Analytics');
+  }
+
   // ==================== EVENTOS DE AUTENTICACIÓN ====================
 
   /// Usuario inició sesión
@@ -163,6 +174,27 @@ class AnalyticsService {
     AppLogger.debug('Analytics: routine_created ($exerciseCount exercises)', tag: 'Analytics');
   }
 
+  /// Terapeuta asignó rutina a paciente
+  Future<void> logRoutineAssigned({
+    required String patientId,
+    required String routineId,
+  }) async {
+    await _analytics.logEvent(
+      name: 'routine_assigned',
+      parameters: {
+        'patient_id': patientId,
+        'routine_id': routineId,
+      },
+    );
+    AppLogger.debug('Analytics: routine_assigned', tag: 'Analytics');
+  }
+
+  /// Terapeuta envió mensaje a paciente
+  Future<void> logTherapistMessageSent() async {
+    await _analytics.logEvent(name: 'therapist_message_sent');
+    AppLogger.debug('Analytics: therapist_message_sent', tag: 'Analytics');
+  }
+
   // ==================== EVENTOS DE PROGRESO ====================
 
   /// Usuario vio su reporte de progreso
@@ -182,6 +214,65 @@ class AnalyticsService {
       method: method,
     );
     AppLogger.debug('Analytics: progress_shared ($method)', tag: 'Analytics');
+  }
+
+  /// Usuario generó PDF de reporte
+  Future<void> logReportGenerated({required String type}) async {
+    await _analytics.logEvent(
+      name: 'report_generated',
+      parameters: {'type': type},
+    );
+    AppLogger.debug('Analytics: report_generated ($type)', tag: 'Analytics');
+  }
+
+  // ==================== EVENTOS DE ENGAGEMENT ====================
+
+  /// Usuario abrió la app
+  Future<void> logAppOpen() async {
+    await _analytics.logAppOpen();
+    AppLogger.debug('Analytics: app_open', tag: 'Analytics');
+  }
+
+  /// Usuario completó onboarding
+  Future<void> logOnboardingComplete() async {
+    await _analytics.logEvent(name: 'onboarding_complete');
+    AppLogger.debug('Analytics: onboarding_complete', tag: 'Analytics');
+  }
+
+  /// Usuario alcanzó una racha
+  Future<void> logStreakAchieved({required int days}) async {
+    await _analytics.logEvent(
+      name: 'streak_achieved',
+      parameters: {'days': days},
+    );
+    AppLogger.debug('Analytics: streak_achieved ($days days)', tag: 'Analytics');
+  }
+
+  /// Usuario desbloqueó logro
+  Future<void> logAchievementUnlocked({required String achievementId}) async {
+    await _analytics.logUnlockAchievement(id: achievementId);
+    AppLogger.debug('Analytics: achievement_unlocked ($achievementId)', tag: 'Analytics');
+  }
+
+  /// Usuario calificó dolor después de ejercicio
+  Future<void> logPainLevelReported({
+    required int level,
+    required String exerciseId,
+  }) async {
+    await _analytics.logEvent(
+      name: 'pain_level_reported',
+      parameters: {
+        'pain_level': level,
+        'exercise_id': exerciseId,
+      },
+    );
+    AppLogger.debug('Analytics: pain_level_reported (level: $level)', tag: 'Analytics');
+  }
+
+  /// Usuario buscó ejercicios
+  Future<void> logSearch({required String query}) async {
+    await _analytics.logSearch(searchTerm: query);
+    AppLogger.debug('Analytics: search ($query)', tag: 'Analytics');
   }
 
   // ==================== PROPIEDADES DE USUARIO ====================

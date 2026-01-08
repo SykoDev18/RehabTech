@@ -140,13 +140,44 @@ class AppRouter {
             builder: (context, state) => const TherapistChatScreen(),
           ),
           
-          // Detalle de ejercicio
+          // Detalle de ejercicio (soporta deep linking por ID)
           GoRoute(
             path: 'exercise/:id',
             name: 'exerciseDetail',
             builder: (context, state) {
-              final exercise = state.extra as Exercise;
-              return ExerciseDetailScreen(exercise: exercise);
+              // Primero intentar obtener de extra (navegación interna)
+              final extraExercise = state.extra as Exercise?;
+              if (extraExercise != null) {
+                return ExerciseDetailScreen(exercise: extraExercise);
+              }
+              
+              // Si no hay extra, buscar por ID (deep link)
+              final id = state.pathParameters['id']!;
+              final exercise = allExercises.where((e) => e.id == id).firstOrNull;
+              
+              if (exercise != null) {
+                return ExerciseDetailScreen(exercise: exercise);
+              }
+              
+              // Ejercicio no encontrado - mostrar error
+              return Scaffold(
+                appBar: AppBar(title: const Text('Error')),
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text('Ejercicio "$id" no encontrado'),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => context.go('/main'),
+                        child: const Text('Volver al inicio'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             },
           ),
           

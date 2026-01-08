@@ -166,5 +166,48 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
+
+    // ============ TOKENS FCM (para notificaciones push) ============
+    match /fcm_tokens/{tokenId} {
+      // Solo el propietario puede gestionar sus tokens
+      allow read, write: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ============ CONFIGURACIÓN DE NOTIFICACIONES ============
+    match /notification_settings/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ============ HISTORIAL DE NOTIFICACIONES ENVIADAS ============
+    match /sent_notifications/{notificationId} {
+      // Solo lectura para el destinatario
+      allow read: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+      // Crear solo desde backend (Cloud Functions) - regla más permisiva para desarrollo
+      allow create: if isAuthenticated();
+      // Marcar como leída
+      allow update: if isAuthenticated() 
+                    && resource.data.recipientId == request.auth.uid
+                    && onlyUpdatesFields(['read', 'readAt']);
+    }
+
+    // ============ STREAKS Y LOGROS ============
+    match /user_streaks/{userId} {
+      allow read: if isOwner(userId) || isAssignedTherapist(userId);
+      allow write: if isOwner(userId);
+    }
+
+    match /achievements/{achievementId} {
+      // Catálogo de logros - todos pueden leer
+      allow read: if isAuthenticated();
+      // Solo admin puede escribir (en producción, restringir más)
+      allow write: if false;
+    }
+
+    match /user_achievements/{docId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if false; // Los logros no se modifican una vez otorgados
+    }
   }
 }

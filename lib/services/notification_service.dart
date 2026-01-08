@@ -5,6 +5,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../core/utils/logger.dart';
 
 /// Handler para mensajes en background (debe ser top-level function)
@@ -21,6 +23,8 @@ class NotificationService {
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   
   bool _initialized = false;
   String? _fcmToken;
@@ -33,6 +37,57 @@ class NotificationService {
   static const String _keyReminderMinute = 'notif_reminder_minute';
   static const String _keyTherapistMessages = 'notif_therapist_messages';
   static const String _keyProgressUpdates = 'notif_progress_updates';
+
+  /// Guardar token FCM en Firestore para enviar notificaciones desde backend
+  Future<void> _saveTokenToFirestore(String? token) async {
+    if (token == null) return;
+    
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // Guardar en colección de tokens
+      await _firestore.collection('fcm_tokens').doc('${user.uid}_${token.hashCode}').set({
+        'userId': user.uid,
+        'token': token,
+        'platform': Platform.isAndroid ? 'android' : 'ios',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // También guardar en el documento del usuario para acceso rápido
+      await _firestore.collection('users').doc(user.uid).update({
+        'fcmToken': token,
+        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+      });
+
+      AppLogger.info('Token FCM guardado en Firestore', tag: 'FCM');
+    } catch (e) {
+      AppLogger.error('Error guardando token FCM: $e', tag: 'FCM');
+    }
+  }
+
+  /// Eliminar token FCM al cerrar sesión
+  Future<void> removeToken() async {
+    final user = _auth.currentUser;
+    if (user == null || _fcmToken == null) return;
+
+    try {
+      await _firestore
+          .collection('fcm_tokens')
+          .doc('${user.uid}_${_fcmToken.hashCode}')
+          .delete();
+      
+      await _firestore.collection('users').doc(user.uid).update({
+        'fcmToken': FieldValue.delete(),
+        'fcmTokenUpdatedAt': FieldValue.delete(),
+      });
+
+      AppLogger.info('Token FCM eliminado de Firestore', tag: 'FCM');
+    } catch (e) {
+      AppLogger.error('Error eliminando token FCM: $e', tag: 'FCM');
+    }
+  }
 
   /// Inicializar el servicio de notificaciones
   Future<void> initialize() async {
@@ -68,11 +123,14 @@ class NotificationService {
         _fcmToken = await _messaging.getToken();
         AppLogger.info('FCM Token: ${_fcmToken?.substring(0, 20)}...', tag: 'FCM');
 
+        // Guardar token en Firestore
+        await _saveTokenToFirestore(_fcmToken);
+
         // Escuchar cambios de token
         _messaging.onTokenRefresh.listen((token) {
           _fcmToken = token;
           AppLogger.info('FCM Token actualizado', tag: 'FCM');
-          // TODO: Enviar nuevo token al servidor
+          _saveTokenToFirestore(token);
         });
 
         // Configurar notificaciones locales

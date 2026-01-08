@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Color primario de la app para notificaciones FCM -->
+    <color name="notification_color">#6366F1</color>
+    <!-- Color primario -->
+    <color name="primary">#6366F1</color>
+    <!-- Color de acento -->
+    <color name="accent">#3B82F6</color>
 </resources>

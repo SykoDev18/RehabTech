@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:rehabtech/services/progress_service.dart';
+import 'package:rehabtech/services/notification_service.dart';
+import 'package:rehabtech/services/analytics_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -17,8 +19,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _therapistMessages = true;
   bool _appUpdates = false;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 9, minute: 0);
+  bool _isLoading = true;
   
   final ProgressService _progressService = ProgressService();
+  final NotificationService _notificationService = NotificationService();
   
   @override
   void initState() {
@@ -26,8 +30,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _loadSettings();
   }
   
-  void _loadSettings() {
-    // Cargar configuraciones guardadas
+  Future<void> _loadSettings() async {
+    // Cargar preferencias de notificaciones reales
+    final notifPrefs = await _notificationService.getReminderSettings();
+    
+    // Cargar configuraciones guardadas localmente
     final daily = _progressService.getSetting('notif_daily');
     final weekly = _progressService.getSetting('notif_weekly');
     final achieve = _progressService.getSetting('notif_achievements');
@@ -35,11 +42,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final updates = _progressService.getSetting('notif_updates');
     
     setState(() {
-      if (daily != null) _dailyReminder = daily == 1.0;
+      // Preferencias del NotificationService tienen prioridad
+      _dailyReminder = notifPrefs['enabled'] ?? 
+          (daily != null ? daily == 1.0 : true);
+      _reminderTime = TimeOfDay(
+        hour: notifPrefs['hour'] ?? 9,
+        minute: notifPrefs['minute'] ?? 0,
+      );
+      _therapistMessages = notifPrefs['therapistMessages'] ?? 
+          (therapist != null ? therapist == 1.0 : true);
+      
+      // Preferencias locales
       if (weekly != null) _weeklyProgress = weekly == 1.0;
       if (achieve != null) _achievements = achieve == 1.0;
-      if (therapist != null) _therapistMessages = therapist == 1.0;
       if (updates != null) _appUpdates = updates == 1.0;
+      
+      _isLoading = false;
     });
   }
   
@@ -100,7 +118,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
               
               Expanded(
-                child: SingleChildScrollView(
+                child: _isLoading 
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,19 +345,65 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
   
   void _saveSettings() async {
-    await _progressService.saveSetting('notif_daily', _dailyReminder ? 1.0 : 0.0);
-    await _progressService.saveSetting('notif_weekly', _weeklyProgress ? 1.0 : 0.0);
-    await _progressService.saveSetting('notif_achievements', _achievements ? 1.0 : 0.0);
-    await _progressService.saveSetting('notif_therapist', _therapistMessages ? 1.0 : 0.0);
-    await _progressService.saveSetting('notif_updates', _appUpdates ? 1.0 : 0.0);
+    setState(() => _isLoading = true);
     
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Configuración guardada'),
-        backgroundColor: Color(0xFF22C55E),
-      ),
-    );
-    Navigator.pop(context);
+    try {
+      // Guardar preferencias locales
+      await _progressService.saveSetting('notif_daily', _dailyReminder ? 1.0 : 0.0);
+      await _progressService.saveSetting('notif_weekly', _weeklyProgress ? 1.0 : 0.0);
+      await _progressService.saveSetting('notif_achievements', _achievements ? 1.0 : 0.0);
+      await _progressService.saveSetting('notif_therapist', _therapistMessages ? 1.0 : 0.0);
+      await _progressService.saveSetting('notif_updates', _appUpdates ? 1.0 : 0.0);
+      
+      // Configurar recordatorio diario real
+      if (_dailyReminder) {
+        await _notificationService.scheduleDailyReminder(
+          hour: _reminderTime.hour,
+          minute: _reminderTime.minute,
+        );
+      } else {
+        await _notificationService.cancelDailyReminder();
+      }
+      
+      // Guardar preferencia de mensajes del terapeuta
+      await _notificationService.setTherapistMessagesEnabled(_therapistMessages);
+      
+      // Track analytics
+      AnalyticsService().logEvent(
+        name: 'notification_settings_changed',
+        parameters: {
+          'daily_reminder': _dailyReminder,
+          'reminder_time': '${_reminderTime.hour}:${_reminderTime.minute}',
+          'therapist_messages': _therapistMessages,
+        },
+      );
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(LucideIcons.check, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(_dailyReminder 
+                  ? 'Recordatorio configurado a las ${_reminderTime.format(context)}'
+                  : 'Configuración guardada'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF22C55E),
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 }
