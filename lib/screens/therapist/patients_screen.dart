@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -546,6 +545,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
     );
   }
 
+  // ignore: unused_element - Método reservado para agregar pacientes manualmente en futuras versiones
   void _showAddPatientManualModal() {
     final nameController = TextEditingController();
     final conditionController = TextEditingController();

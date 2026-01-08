@@ -264,7 +264,7 @@ Reglas:
       if (response.text != null && mounted) {
         _addAiMessage(response.text!);
       }
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.warning('Error al obtener consejo de IA', data: {'error': e.toString()}, tag: 'TherapySession');
     } finally {
       if (mounted) {

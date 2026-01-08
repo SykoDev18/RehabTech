@@ -1,5 +1,6 @@
 /// Presentation module exports
 /// Contains UI widgets and state providers
+library;
 
 // Providers
 export 'providers/theme_provider.dart';

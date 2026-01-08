@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:rehabtech/services/progress_service.dart';
@@ -159,7 +158,8 @@ class _HighContrastScreenState extends State<HighContrastScreen> {
                               onChanged: (value) {
                                 setState(() => _highContrastEnabled = value);
                               },
-                              activeColor: Colors.yellow,
+                              activeTrackColor: Colors.yellow.withAlpha(128),
+                              activeThumbColor: Colors.yellow,
                             ),
                           ],
                         ),

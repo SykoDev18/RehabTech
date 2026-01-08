@@ -1,9 +1,7 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../domain/entities/appointment_entity.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -526,7 +524,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             final patients = snapshot.data!.docs;
 
                             return DropdownButtonFormField<String>(
-                              value: selectedPatientId,
+                              initialValue: selectedPatientId,
                               decoration: const InputDecoration(
                                 border: InputBorder.none,
                                 isDense: true,

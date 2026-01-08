@@ -1,5 +1,6 @@
 /// Data module exports
 /// Contains repository implementations, data sources, and models
+library;
 
 // Repositories
 export 'repositories/auth_repository_impl.dart';

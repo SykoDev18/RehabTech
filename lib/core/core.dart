@@ -1,5 +1,6 @@
 /// Core module exports
 /// Contains shared utilities, constants, extensions, and theme configuration
+library;
 
 // Theme
 export 'theme/app_theme.dart';

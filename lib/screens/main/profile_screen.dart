@@ -844,7 +844,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     trailing: Switch.adaptive(
                       value: themeProvider.isDarkMode,
                       onChanged: (_) => themeProvider.toggleTheme(),
-                      activeColor: const Color(0xFF3B82F6),
+                      activeTrackColor: const Color(0xFF3B82F6).withAlpha(128),
+                      activeThumbColor: const Color(0xFF3B82F6),
                     ),
                   ),
                   const Divider(height: 1),
@@ -883,7 +884,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           themeProvider.setThemeMode(ThemeMode.system);
                         }
                       },
-                      activeColor: Colors.purple,
+                      activeTrackColor: Colors.purple.withAlpha(128),
+                      activeThumbColor: Colors.purple,
                     ),
                   ),
                 ],

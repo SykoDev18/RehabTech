@@ -233,7 +233,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
       trailing: Switch.adaptive(
         value: value,
         onChanged: onChanged,
-        activeColor: const Color(0xFF3B82F6),
+        activeTrackColor: const Color(0xFF3B82F6).withAlpha(128),
+        activeThumbColor: const Color(0xFF3B82F6),
       ),
     );
   }

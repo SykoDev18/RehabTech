@@ -1,5 +1,6 @@
 /// Domain module exports
 /// Contains entities, repository interfaces, and use cases
+library;
 
 // Entities
 export 'entities/user_entity.dart';

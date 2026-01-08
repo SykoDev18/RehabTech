@@ -319,10 +319,12 @@ class PdfService {
     final file = File('${directory.path}/reporte_progreso_$period.pdf');
     await file.writeAsBytes(pdfBytes);
     
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'Mi reporte de progreso de RehabTech - $period',
-      subject: 'Reporte de Progreso RehabTech',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'Mi reporte de progreso de RehabTech - $period',
+        subject: 'Reporte de Progreso RehabTech',
+      ),
     );
   }
 

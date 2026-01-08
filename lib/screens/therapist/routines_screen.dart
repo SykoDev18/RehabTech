@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -852,7 +851,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               final patients = snapshot.data!.docs;
 
               return DropdownButtonFormField<String>(
-                value: selectedPatientId,
+                initialValue: selectedPatientId,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),

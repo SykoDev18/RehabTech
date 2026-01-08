@@ -1,4 +1,5 @@
 /// Chat entities for the domain layer
+library;
 
 enum MessageAuthor { user, nora, therapist }
 
