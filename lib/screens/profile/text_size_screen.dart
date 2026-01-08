@@ -279,12 +279,14 @@ class _TextSizeScreenState extends State<TextSizeScreen> {
                           onPressed: () async {
                             await _progressService.saveSetting('textSize', _textSize);
                             if (!mounted) return;
+                            // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Configuración guardada'),
                                 backgroundColor: Color(0xFF22C55E),
                               ),
                             );
+                            // ignore: use_build_context_synchronously
                             Navigator.pop(context);
                           },
                           style: ElevatedButton.styleFrom(

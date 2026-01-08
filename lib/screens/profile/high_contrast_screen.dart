@@ -299,6 +299,7 @@ class _HighContrastScreenState extends State<HighContrastScreen> {
                               _highContrastEnabled ? 1.0 : 0.0,
                             );
                             if (!mounted) return;
+                            // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: const Text('Configuración guardada'),
@@ -307,6 +308,7 @@ class _HighContrastScreenState extends State<HighContrastScreen> {
                                     : const Color(0xFF22C55E),
                               ),
                             );
+                            // ignore: use_build_context_synchronously
                             Navigator.pop(context);
                           },
                           style: ElevatedButton.styleFrom(

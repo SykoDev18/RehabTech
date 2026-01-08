@@ -51,6 +51,7 @@ class PoseDetectionService {
   ExerciseType _currentExercise = ExerciseType.generic;
   
   // Estado de la máquina de estados para conteo
+  // ignore: unused_field
   bool _wasInStartPosition = true;
   bool _wasInEndPosition = false;
   int _repCount = 0;

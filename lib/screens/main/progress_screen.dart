@@ -212,11 +212,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   await PdfService.sharePdf(_selectedPeriod);
                 } catch (e) {
                   if (!mounted) return;
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error al compartir: $e')),
                   );
                 }
                 if (!mounted) return;
+                // ignore: use_build_context_synchronously
                 Navigator.pop(context);
               },
             ),
@@ -239,11 +241,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   await PdfService.printPdf(_selectedPeriod);
                 } catch (e) {
                   if (!mounted) return;
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error al imprimir: $e')),
                   );
                 }
                 if (!mounted) return;
+                // ignore: use_build_context_synchronously
                 Navigator.pop(context);
               },
             ),
