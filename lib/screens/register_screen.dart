@@ -8,6 +8,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:rehabtech/router/app_router.dart';
+import 'package:rehabtech/services/analytics_service.dart';
+import 'package:rehabtech/services/notification_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -97,6 +99,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
 
+      // Track signup event
+      final analytics = AnalyticsService();
+      analytics.logSignUp(method: 'email');
+      analytics.setUserId(userCredential.user!.uid);
+      analytics.setUserType(_userType);
+      
+      // Subscribe to notifications based on user type
+      final notifications = NotificationService();
+      await notifications.subscribeToTopic(_userType);
+
       await _navigateAfterRegister();
     } on FirebaseAuthException catch (e) {
       if (mounted) {
@@ -144,6 +156,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'userType': _userType,
           'createdAt': FieldValue.serverTimestamp(),
         });
+        
+        // Track signup for new Google users
+        final analytics = AnalyticsService();
+        analytics.logSignUp(method: 'google');
+        analytics.setUserId(userCredential.user!.uid);
+        analytics.setUserType(_userType);
+        
+        // Subscribe to notifications
+        final notifications = NotificationService();
+        await notifications.subscribeToTopic(_userType);
       }
       
       await _navigateAfterRegister();

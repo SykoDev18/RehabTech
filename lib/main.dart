@@ -15,6 +15,8 @@ import 'core/utils/app_check_service.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'router/app_router.dart';
 import 'services/progress_service.dart';
+import 'services/analytics_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   // Capturar errores de zona para logging
@@ -34,6 +36,14 @@ void main() async {
     
     // Firebase App Check (protección de APIs)
     await AppCheckService().initialize();
+    
+    // Firebase Analytics
+    await AnalyticsService().initialize();
+    AppLogger.info('Firebase Analytics inicializado', tag: 'App');
+    
+    // Firebase Cloud Messaging (notificaciones)
+    await NotificationService().initialize();
+    AppLogger.info('Firebase Messaging inicializado', tag: 'App');
     
     // Cargar variables de entorno
     await dotenv.load(fileName: ".env");

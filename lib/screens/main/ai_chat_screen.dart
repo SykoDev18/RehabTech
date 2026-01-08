@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:rehabtech/core/utils/logger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rehabtech/services/analytics_service.dart';
 
 enum MessageAuthor { user, nora }
 
@@ -435,6 +436,9 @@ Tu función es:
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
     if (text.isEmpty || _chat == null) return;
+
+    // Track chat message
+    AnalyticsService().logChatMessage(isUser: true);
 
     _textController.clear();
     

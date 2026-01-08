@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rehabtech/router/app_router.dart';
+import 'package:rehabtech/services/analytics_service.dart';
+import 'package:rehabtech/services/notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -48,6 +50,15 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      
+      // Track login event
+      await AnalyticsService().logLogin(method: 'email');
+      await AnalyticsService().setUserId(_auth.currentUser?.uid);
+      await AnalyticsService().setUserType(_userType);
+      
+      // Subscribe to notifications topic
+      await NotificationService().subscribeToTopic(_userType);
+      
       AppRouter.clearUserTypeCache(); // Limpiar cache para obtener tipo actualizado
       await _navigateAfterLogin();
     } on FirebaseAuthException catch (e) {
@@ -115,6 +126,15 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       
       AppRouter.clearUserTypeCache();
+      
+      // Track login event
+      await AnalyticsService().logLogin(method: 'google');
+      await AnalyticsService().setUserId(_auth.currentUser?.uid);
+      await AnalyticsService().setUserType(_userType);
+      
+      // Subscribe to notifications topic
+      await NotificationService().subscribeToTopic(_userType);
+      
       await _navigateAfterLogin();
     } on FirebaseAuthException catch (e) {
       if (mounted) {

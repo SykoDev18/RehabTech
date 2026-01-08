@@ -8,6 +8,7 @@ import 'package:rehabtech/models/exercise.dart';
 import 'package:rehabtech/screens/main/session_report_screen.dart';
 import 'package:rehabtech/services/progress_service.dart';
 import 'package:rehabtech/services/pose_detection_service.dart';
+import 'package:rehabtech/services/analytics_service.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -576,6 +577,16 @@ Reglas:
     );
     
     await progressService.saveProgress(progressData);
+    
+    // Track analytics
+    await AnalyticsService().logExerciseCompleted(
+      exerciseId: widget.exercise.id,
+      exerciseName: widget.exercise.title,
+      completedReps: _currentRep,
+      totalReps: widget.exercise.reps,
+      durationSeconds: _elapsedSeconds,
+      completionPercentage: completionPercentage,
+    );
     
     // Navegar al reporte
     if (!mounted) return;

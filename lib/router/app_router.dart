@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rehabtech/services/analytics_service.dart';
 import 'package:rehabtech/screens/login_screen.dart';
 import 'package:rehabtech/screens/register_screen.dart';
 import 'package:rehabtech/screens/forgot_password_screen.dart';
@@ -62,6 +63,7 @@ class AppRouter {
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     debugLogDiagnostics: true,
+    observers: [AnalyticsService().observer],
     
     // Redirect para autenticación
     redirect: (context, state) async {
