@@ -278,6 +278,7 @@ class _TextSizeScreenState extends State<TextSizeScreen> {
                         child: ElevatedButton(
                           onPressed: () async {
                             await _progressService.saveSetting('textSize', _textSize);
+                            if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Configuración guardada'),

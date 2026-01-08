@@ -331,6 +331,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await _progressService.saveSetting('notif_therapist', _therapistMessages ? 1.0 : 0.0);
     await _progressService.saveSetting('notif_updates', _appUpdates ? 1.0 : 0.0);
     
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Configuración guardada'),

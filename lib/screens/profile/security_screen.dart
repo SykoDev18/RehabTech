@@ -397,6 +397,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   );
                   await user.reauthenticateWithCredential(credential);
                   await user.updatePassword(newPasswordController.text);
+                  if (!context.mounted) return;
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -406,6 +407,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   );
                 }
               } catch (e) {
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Error: $e')),
                 );
@@ -486,6 +488,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
           ElevatedButton(
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
+              if (!context.mounted) return;
               Navigator.of(context).popUntil((route) => route.isFirst);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -517,8 +520,10 @@ class _SecurityScreenState extends State<SecurityScreen> {
             onPressed: () async {
               try {
                 await FirebaseAuth.instance.currentUser?.delete();
+                if (!context.mounted) return;
                 Navigator.of(context).popUntil((route) => route.isFirst);
               } catch (e) {
+                if (!context.mounted) return;
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(

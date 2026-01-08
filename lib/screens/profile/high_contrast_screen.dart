@@ -298,6 +298,7 @@ class _HighContrastScreenState extends State<HighContrastScreen> {
                               'highContrast',
                               _highContrastEnabled ? 1.0 : 0.0,
                             );
+                            if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: const Text('Configuración guardada'),

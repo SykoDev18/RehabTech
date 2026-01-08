@@ -578,6 +578,7 @@ Reglas:
     await progressService.saveProgress(progressData);
     
     // Navegar al reporte
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => SessionReportScreen(
