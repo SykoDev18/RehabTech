@@ -133,7 +133,7 @@ class AnalyticsService {
     await _analytics.logEvent(
       name: 'chat_message',
       parameters: {
-        'is_user': isUser,
+        'is_user': isUser ? 1 : 0, // Firebase Analytics solo acepta String o num
       },
     );
   }

@@ -12,7 +12,8 @@
     <application
         android:label="RehabTech"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true">
         
         <!-- FCM: Canal de notificaciones por defecto -->
         <meta-data
