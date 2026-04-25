@@ -589,6 +589,12 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
           ),
         );
       }
+    } on FirebaseException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo actualizar el perfil: ${e.code}')),
+        );
+      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -603,6 +609,12 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
       await FirebaseAuth.instance.signOut();
       if (mounted) {
         context.go('/login');
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error de autenticación al cerrar sesión: ${e.code}')),
+        );
       }
     } catch (e) {
       if (mounted) {

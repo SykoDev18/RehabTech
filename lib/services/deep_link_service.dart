@@ -122,8 +122,12 @@ class DeepLinkService {
   Exercise? getExerciseById(String id) {
     try {
       return allExercises.firstWhere((e) => e.id == id);
-    } catch (e) {
+    } on StateError {
+      // firstWhere lanza StateError cuando no encuentra el elemento.
       AppLogger.warning('Ejercicio no encontrado: $id', tag: 'DeepLink');
+      return null;
+    } catch (e) {
+      AppLogger.warning('Error buscando ejercicio $id: $e', tag: 'DeepLink');
       return null;
     }
   }

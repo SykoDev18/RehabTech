@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 import 'logger.dart';
@@ -9,6 +11,7 @@ class AppCheckService {
   AppCheckService._internal();
 
   bool _initialized = false;
+  StreamSubscription<String?>? _tokenChangeSub;
 
   /// Inicializar App Check
   /// 
@@ -42,7 +45,7 @@ class AppCheckService {
       );
 
       // Escuchar cambios en el token (opcional)
-      FirebaseAppCheck.instance.onTokenChange.listen((token) {
+      _tokenChangeSub = FirebaseAppCheck.instance.onTokenChange.listen((token) {
         AppLogger.debug(
           'App Check token actualizado',
           data: {'tokenLength': token?.length ?? 0},
@@ -78,4 +81,12 @@ class AppCheckService {
 
   /// Verificar si App Check está activo
   bool get isInitialized => _initialized;
+
+  /// Cancela la suscripción al token y libera recursos.
+  /// Singleton de toda la vida de la app; expuesto para tests/cierre forzoso.
+  Future<void> dispose() async {
+    await _tokenChangeSub?.cancel();
+    _tokenChangeSub = null;
+    _initialized = false;
+  }
 }

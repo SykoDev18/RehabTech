@@ -1,3 +1,4 @@
+import 'dart:io' show SocketException;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -5,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:rehabtech/core/constants/api_constants.dart';
+import 'package:rehabtech/core/utils/logger.dart';
 
 class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key});
@@ -485,7 +487,30 @@ Si no puedes resolver un problema, sugiere contactar a soporte por email: rehabt
         });
         _scrollToBottom();
       }
-    } catch (e) {
+    } on GenerativeAIException catch (e, st) {
+      AppLogger.error('Error de Gemini en soporte', error: e, stackTrace: st, tag: 'HelpCenter');
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(
+            text: 'El asistente no está disponible en este momento. Por favor intenta más tarde o contacta a soporte por email.',
+            isUser: false,
+          ));
+          _isLoading = false;
+        });
+      }
+    } on SocketException catch (e, st) {
+      AppLogger.error('Sin conexión en soporte', error: e, stackTrace: st, tag: 'HelpCenter');
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(
+            text: 'Sin conexión a internet. Verifica tu conexión e intenta de nuevo.',
+            isUser: false,
+          ));
+          _isLoading = false;
+        });
+      }
+    } catch (e, st) {
+      AppLogger.error('Error inesperado en soporte', error: e, stackTrace: st, tag: 'HelpCenter');
       if (mounted) {
         setState(() {
           _messages.add(_ChatMessage(

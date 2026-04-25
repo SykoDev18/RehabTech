@@ -406,6 +406,21 @@ class _SecurityScreenState extends State<SecurityScreen> {
                     ),
                   );
                 }
+              } on FirebaseAuthException catch (e) {
+                if (!context.mounted) return;
+                final msg = switch (e.code) {
+                  'wrong-password' => 'La contraseña actual es incorrecta',
+                  'invalid-credential' => 'Credenciales inválidas',
+                  'weak-password' => 'La nueva contraseña es demasiado débil',
+                  'requires-recent-login' =>
+                    'Debes volver a iniciar sesión para cambiar la contraseña',
+                  'too-many-requests' =>
+                    'Demasiados intentos. Intenta más tarde',
+                  _ => 'Error de autenticación: ${e.code}',
+                };
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(msg)),
+                );
               } catch (e) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -522,13 +537,20 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 await FirebaseAuth.instance.currentUser?.delete();
                 if (!context.mounted) return;
                 Navigator.of(context).popUntil((route) => route.isFirst);
+              } on FirebaseAuthException catch (e) {
+                if (!context.mounted) return;
+                Navigator.pop(context);
+                final msg = e.code == 'requires-recent-login'
+                    ? 'Debes volver a iniciar sesión para eliminar tu cuenta'
+                    : 'No se pudo eliminar la cuenta: ${e.code}';
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(msg)),
+                );
               } catch (e) {
                 if (!context.mounted) return;
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Debes volver a iniciar sesión para eliminar tu cuenta'),
-                  ),
+                  SnackBar(content: Text('Error eliminando cuenta: $e')),
                 );
               }
             },

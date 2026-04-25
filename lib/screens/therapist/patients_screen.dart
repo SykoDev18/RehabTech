@@ -493,6 +493,11 @@ class _PatientsScreenState extends State<PatientsScreen> {
                           ),
                         );
                       }
+                    } on FirebaseException catch (_) {
+                      setModalState(() {
+                        searchError = 'No se pudo asignar el paciente. Inténtalo de nuevo.';
+                        isSearching = false;
+                      });
                     } catch (e) {
                       setModalState(() {
                         searchError = 'Error al buscar paciente';
@@ -791,6 +796,12 @@ class _PatientsScreenState extends State<PatientsScreen> {
             content: Text('Paciente agregado exitosamente'),
             backgroundColor: Colors.green,
           ),
+        );
+      }
+    } on FirebaseException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo agregar el paciente: ${e.code}')),
         );
       }
     } catch (e) {

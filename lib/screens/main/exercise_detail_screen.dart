@@ -54,6 +54,8 @@ class ExerciseDetailScreen extends StatelessWidget {
                       child: Image.network(
                         exercise.imageUrl,
                         fit: BoxFit.cover,
+                        // Hero del detalle de ejercicio; decode acotado.
+                        cacheWidth: 800,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
                             color: exercise.iconBgColor,

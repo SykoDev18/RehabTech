@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show SocketException;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -313,8 +314,12 @@ Reglas:
       if (response.text != null && mounted) {
         _addAiMessage(response.text!);
       }
+    } on GenerativeAIException catch (e) {
+      AppLogger.warning('Gemini falló en sesión', data: {'error': e.toString()}, tag: 'TherapySession');
+    } on SocketException catch (e) {
+      AppLogger.warning('Sin conexión durante consejo de IA', data: {'error': e.toString()}, tag: 'TherapySession');
     } catch (e) {
-      AppLogger.warning('Error al obtener consejo de IA', data: {'error': e.toString()}, tag: 'TherapySession');
+      AppLogger.warning('Error inesperado al obtener consejo de IA', data: {'error': e.toString()}, tag: 'TherapySession');
     } finally {
       if (mounted) {
         setState(() {
@@ -703,6 +708,10 @@ Reglas:
     super.dispose();
   }
 
+  // TODO(optimization): build() es ~258 líneas. Extraer sub-widgets:
+  // _PoseOverlay (cámara + skeleton), _SessionMetrics (timer/reps/score),
+  // _AiCoachPanel (mensajes + botón pedir consejo). Reduce coste de rebuild
+  // al cambiar contadores frame-a-frame.
   @override
   Widget build(BuildContext context) {
     return Scaffold(

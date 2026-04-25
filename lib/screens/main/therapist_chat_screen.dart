@@ -170,6 +170,8 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
                       child: Image.network(
                         'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&h=200&fit=crop',
                         fit: BoxFit.cover,
+                        cacheWidth: 200,
+                        cacheHeight: 200,
                         errorBuilder: (context, error, stackTrace) => const Icon(
                           LucideIcons.user,
                           color: Colors.white,
@@ -300,6 +302,8 @@ class _TherapistChatScreenState extends State<TherapistChatScreen> {
                     child: Image.network(
                       'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100&h=100&fit=crop',
                       fit: BoxFit.cover,
+                      cacheWidth: 100,
+                      cacheHeight: 100,
                       errorBuilder: (context, error, stackTrace) => const Icon(
                         LucideIcons.user,
                         color: Colors.white,

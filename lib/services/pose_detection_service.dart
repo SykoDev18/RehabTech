@@ -1,8 +1,9 @@
 import 'dart:math' as math;
 import 'dart:ui' show Size;
 import 'package:camera/camera.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
-import 'package:flutter/foundation.dart';
+import '../core/utils/logger.dart';
 
 /// Tipos de ejercicio soportados con detección de poses
 enum ExerciseType {
@@ -145,8 +146,21 @@ class PoseDetectionService {
       // Analizar la primera pose detectada
       final pose = poses.first;
       return _analyzeExercise(pose);
-    } catch (e) {
-      debugPrint('Error procesando frame: $e');
+    } on PlatformException catch (e, st) {
+      AppLogger.error(
+        'PlatformException procesando frame de pose',
+        error: e,
+        stackTrace: st,
+        tag: 'PoseDetection',
+      );
+      return null;
+    } catch (e, st) {
+      AppLogger.error(
+        'Error procesando frame de pose',
+        error: e,
+        stackTrace: st,
+        tag: 'PoseDetection',
+      );
       return null;
     }
   }

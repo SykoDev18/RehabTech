@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/logger.dart';
 import '../../models/exercise.dart';
 
 class RoutinesScreen extends StatefulWidget {
@@ -929,7 +930,25 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
           ),
         );
       }
-    } catch (e) {
+    } on FirebaseException catch (e, st) {
+      AppLogger.error(
+        'Firestore error guardando rutina',
+        error: e,
+        stackTrace: st,
+        tag: 'Routines',
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo guardar la rutina: ${e.code}')),
+        );
+      }
+    } catch (e, st) {
+      AppLogger.error(
+        'Error guardando rutina',
+        error: e,
+        stackTrace: st,
+        tag: 'Routines',
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),

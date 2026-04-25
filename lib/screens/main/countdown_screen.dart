@@ -101,6 +101,8 @@ class _CountdownScreenState extends State<CountdownScreen>
           Image.network(
             widget.exercise.imageUrl,
             fit: BoxFit.cover,
+            // Hero background; decode at ~screen width para limitar memoria.
+            cacheWidth: 800,
             errorBuilder: (context, error, stackTrace) {
               return Container(
                 color: const Color(0xFF1F2937),

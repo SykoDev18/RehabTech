@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -28,6 +29,12 @@ class NotificationService {
   
   bool _initialized = false;
   String? _fcmToken;
+
+  // Subscriptions retained so dispose() can cancel them. The service is a
+  // singleton initialized once at app start, so these are app-lifetime.
+  StreamSubscription<String>? _tokenRefreshSub;
+  StreamSubscription<RemoteMessage>? _onMessageSub;
+  StreamSubscription<RemoteMessage>? _onMessageOpenedSub;
 
   String? get fcmToken => _fcmToken;
 
@@ -62,6 +69,8 @@ class NotificationService {
       });
 
       AppLogger.info('Token FCM guardado en Firestore', tag: 'FCM');
+    } on FirebaseException catch (e) {
+      AppLogger.error('Firestore error guardando token FCM: ${e.code} ${e.message}', tag: 'FCM');
     } catch (e) {
       AppLogger.error('Error guardando token FCM: $e', tag: 'FCM');
     }
@@ -84,6 +93,8 @@ class NotificationService {
       });
 
       AppLogger.info('Token FCM eliminado de Firestore', tag: 'FCM');
+    } on FirebaseException catch (e) {
+      AppLogger.error('Firestore error eliminando token FCM: ${e.code} ${e.message}', tag: 'FCM');
     } catch (e) {
       AppLogger.error('Error eliminando token FCM: $e', tag: 'FCM');
     }
@@ -127,7 +138,7 @@ class NotificationService {
         await _saveTokenToFirestore(_fcmToken);
 
         // Escuchar cambios de token
-        _messaging.onTokenRefresh.listen((token) {
+        _tokenRefreshSub = _messaging.onTokenRefresh.listen((token) {
           _fcmToken = token;
           AppLogger.info('FCM Token actualizado', tag: 'FCM');
           _saveTokenToFirestore(token);
@@ -137,10 +148,10 @@ class NotificationService {
         await _initializeLocalNotifications();
 
         // Escuchar mensajes en foreground
-        FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+        _onMessageSub = FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
         // Escuchar cuando se abre la app desde una notificación
-        FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+        _onMessageOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
         // Verificar si la app fue abierta desde una notificación
         final initialMessage = await _messaging.getInitialMessage();
@@ -151,9 +162,24 @@ class NotificationService {
 
       _initialized = true;
       AppLogger.info('Servicio de notificaciones inicializado', tag: 'FCM');
+    } on FirebaseException catch (e) {
+      AppLogger.error('Firebase error inicializando notificaciones: ${e.code} ${e.message}', tag: 'FCM');
     } catch (e) {
       AppLogger.error('Error inicializando notificaciones: $e', tag: 'FCM');
     }
+  }
+
+  /// Cancela todas las suscripciones FCM y libera recursos.
+  /// Como el servicio es singleton de toda la vida de la app, normalmente no
+  /// se invoca; expuesto para tests y para cierre forzoso.
+  Future<void> dispose() async {
+    await _tokenRefreshSub?.cancel();
+    await _onMessageSub?.cancel();
+    await _onMessageOpenedSub?.cancel();
+    _tokenRefreshSub = null;
+    _onMessageSub = null;
+    _onMessageOpenedSub = null;
+    _initialized = false;
   }
 
   /// Inicializar notificaciones locales

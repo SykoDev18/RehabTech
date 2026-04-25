@@ -246,11 +246,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
                   ),
+                  // TODO(optimization): adoptar `cached_network_image` para
+                  // persistir avatares entre sesiones (requiere agregar el
+                  // paquete a pubspec.yaml). Por ahora cacheWidth/Height limita
+                  // memoria por frame.
                   child: _profile.photoUrl.isNotEmpty
                       ? ClipOval(
                           child: Image.network(
                             _profile.photoUrl,
                             fit: BoxFit.cover,
+                            cacheWidth: 240,
+                            cacheHeight: 240,
                             errorBuilder: (context, error, stackTrace) => const Icon(
                               LucideIcons.user,
                               color: Colors.white,
@@ -370,6 +376,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: Image.network(
                               _profile.photoUrl,
                               fit: BoxFit.cover,
+                              cacheWidth: 200,
+                              cacheHeight: 200,
                               errorBuilder: (context, error, stackTrace) => const Icon(
                                 LucideIcons.user,
                                 color: Colors.white,

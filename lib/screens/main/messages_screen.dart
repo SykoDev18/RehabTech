@@ -148,10 +148,12 @@ class MessagesScreen extends StatelessWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: Image.network(
-                            isAI 
+                            isAI
                               ? 'https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=200&h=200&fit=crop'
                               : 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&h=200&fit=crop',
                             fit: BoxFit.cover,
+                            cacheWidth: 120,
+                            cacheHeight: 120,
                             errorBuilder: (context, error, stackTrace) => Container(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(

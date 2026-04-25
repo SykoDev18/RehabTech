@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:rehabtech/services/progress_service.dart';
@@ -210,6 +211,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 _showLoadingDialog();
                 try {
                   await PdfService.sharePdf(_selectedPeriod);
+                } on PlatformException catch (e) {
+                  if (!mounted) return;
+                  // ignore: use_build_context_synchronously
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('No se pudo compartir el PDF: ${e.code}')),
+                  );
                 } catch (e) {
                   if (!mounted) return;
                   // ignore: use_build_context_synchronously
@@ -239,6 +246,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 _showLoadingDialog();
                 try {
                   await PdfService.printPdf(_selectedPeriod);
+                } on PlatformException catch (e) {
+                  if (!mounted) return;
+                  // ignore: use_build_context_synchronously
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('No se pudo imprimir: ${e.code}')),
+                  );
                 } catch (e) {
                   if (!mounted) return;
                   // ignore: use_build_context_synchronously

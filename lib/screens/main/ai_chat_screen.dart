@@ -510,6 +510,12 @@ Tu función es:
     super.dispose();
   }
 
+  // TODO(optimization): build() supera 330 líneas. Extraer:
+  //   _ChatMessageList (StreamBuilder de mensajes),
+  //   _ChatInputBar (TextField + botón enviar + estado pensando),
+  //   _ChatHistoryDrawer (modal de historial).
+  // Cachear `FirebaseAuth.instance.currentUser?.uid` en initState para
+  // evitar consultarlo en cada rebuild.
   @override
   Widget build(BuildContext context) {
     if (_initFailed) {
@@ -609,6 +615,8 @@ Tu función es:
                             child: Image.network(
                               'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=200&h=200&fit=crop',
                               fit: BoxFit.cover,
+                              cacheWidth: 200,
+                              cacheHeight: 200,
                               errorBuilder: (context, error, stackTrace) => Icon(
                                 LucideIcons.bot,
                                 color: Colors.white,

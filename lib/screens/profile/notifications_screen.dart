@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:rehabtech/services/progress_service.dart';
 import 'package:rehabtech/services/notification_service.dart';
@@ -394,6 +395,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
       );
       Navigator.pop(context);
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de plataforma al programar el recordatorio: ${e.code}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

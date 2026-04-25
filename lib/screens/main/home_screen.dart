@@ -97,12 +97,18 @@ class _HomeScreenState extends State<HomeScreen> {
     };
   }
 
+  // TODO(optimization): build() supera 770 líneas. Extraer sub-widgets:
+  //   _HomeHeader (saludo + avatar),
+  //   _ActiveRoutineCard (rutina del día con progreso),
+  //   _ProgressSummaryCard (círculo + métricas),
+  //   _NextExercisesCard (lista de ejercicios próximos).
+  // Mejora la lectura y reduce coste de rebuilds parciales.
   @override
   Widget build(BuildContext context) {
-    final userName = _progressService.userProfile.name.isNotEmpty 
-        ? _progressService.userProfile.name 
+    final userName = _progressService.userProfile.name.isNotEmpty
+        ? _progressService.userProfile.name
         : 'Usuario';
-    
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SingleChildScrollView(
