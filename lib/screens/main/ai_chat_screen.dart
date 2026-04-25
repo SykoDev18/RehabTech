@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:rehabtech/core/constants/api_constants.dart';
 import 'package:rehabtech/core/utils/logger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -157,7 +158,9 @@ class _AiChatScreenState extends State<AiChatScreen> {
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
   bool _isInitialized = false;
-  final String _apiKey = dotenv.env['GEMINI_API_KEY'] ?? 'NO_SE_ENCONTRO_LA_KEY';
+  bool _initFailed = false;
+  String? _initError;
+  final String? _apiKey = dotenv.env['GEMINI_API_KEY'];
   late final GenerativeModel _model;
   ChatSession? _chat;
   
@@ -176,18 +179,26 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 
   Future<void> _initializeChat() async {
-    if (_apiKey == 'NO_SE_ENCONTRO_LA_KEY') {
+    final key = _apiKey;
+    if (key == null || key.isEmpty) {
       AppLogger.error('No se pudo cargar GEMINI_API_KEY desde .env', tag: 'NoraChat');
+      if (mounted) {
+        setState(() {
+          _initFailed = true;
+          _initError = 'No se pudo conectar con Nora. Falta la configuración de API.';
+        });
+      }
+      return;
     }
 
     _model = GenerativeModel(
-      model: 'gemini-3-flash-preview',
-      apiKey: _apiKey,
+      model: ApiConstants.geminiModel,
+      apiKey: key,
     );
 
     // Cargar datos del usuario
     await _loadUserData();
-    
+
     // Cargar contexto del paciente de conversaciones anteriores
     await _loadPatientContext();
 
@@ -201,8 +212,8 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
     // Inicializar el chat con el historial
     _initializeChatSession();
-    
-    setState(() => _isInitialized = true);
+
+    if (mounted) setState(() => _isInitialized = true);
   }
 
   Future<void> _loadUserData() async {
@@ -493,7 +504,49 @@ Tu función es:
   }
 
   @override
+  void dispose() {
+    _textController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_initFailed) {
+      return Scaffold(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue[100]!, Colors.green[100]!],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(LucideIcons.circleAlert, size: 56, color: Color(0xFFDC2626)),
+                  const SizedBox(height: 16),
+                  Text(
+                    _initError ?? 'No se pudo iniciar Nora.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16, color: Color(0xFF111827), fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 24),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Volver'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (!_isInitialized) {
       return Scaffold(
         body: Container(

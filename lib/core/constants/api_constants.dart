@@ -11,7 +11,7 @@ class ApiConstants {
   static const String progressCollection = 'progress';
   
   // Gemini AI
-  static const String geminiModel = 'gemini-2.0-flash';
+  static const String geminiModel = 'gemini-3-flash-preview';
   
   // SharedPreferences keys
   static const String themeModeKey = 'themeMode';

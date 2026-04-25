@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:rehabtech/core/constants/api_constants.dart';
 
 class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key});
@@ -438,7 +439,7 @@ class _SupportChatScreenState extends State<_SupportChatScreen> {
     final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
     if (apiKey.isNotEmpty) {
       _model = GenerativeModel(
-        model: 'gemini-2.5-flash-preview-05-20',
+        model: ApiConstants.geminiModel,
         apiKey: apiKey,
         systemInstruction: Content.text('''
 Eres el asistente de soporte técnico de RehabTech, una aplicación de rehabilitación física.

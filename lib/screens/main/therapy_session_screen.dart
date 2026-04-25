@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:rehabtech/core/constants/api_constants.dart';
 import 'package:rehabtech/core/utils/logger.dart';
 import 'package:rehabtech/models/exercise.dart';
 import 'package:rehabtech/screens/main/session_report_screen.dart';
@@ -21,13 +22,14 @@ class TherapySessionScreen extends StatefulWidget {
   State<TherapySessionScreen> createState() => _TherapySessionScreenState();
 }
 
-class _TherapySessionScreenState extends State<TherapySessionScreen> {
+class _TherapySessionScreenState extends State<TherapySessionScreen>
+    with WidgetsBindingObserver {
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
   CameraDescription? _currentCamera;
   bool _isCameraInitialized = false;
   bool _isPaused = false;
-  
+
   // Detección de poses
   final PoseDetectionService _poseService = PoseDetectionService();
   bool _isPoseDetectionEnabled = true;
@@ -36,16 +38,17 @@ class _TherapySessionScreenState extends State<TherapySessionScreen> {
   double _currentAngle = 0;
   double _poseConfidence = 0;
   List<String> _formCorrections = [];
-  
+  int _frameErrorCount = 0;
+
   // Contadores
   int _currentRep = 0;
   int _elapsedSeconds = 0;
   Timer? _timer;
-  
+  Timer? _tipsTimer;
+
   // Asistente de voz IA
   final List<String> _aiMessages = [];
   bool _isAiThinking = false;
-  late GenerativeModel _model;
   ChatSession? _chatSession;
   
   // Feedback para el reporte
@@ -66,11 +69,41 @@ class _TherapySessionScreenState extends State<TherapySessionScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializePoseDetection();
     _initializeCamera();
     _initializeAI();
     _startTimer();
     _scheduleAiTips();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) {
+      return;
+    }
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      // Stop camera + pose pipeline to free hardware and stop battery drain.
+      if (controller.value.isStreamingImages) {
+        controller.stopImageStream().catchError((Object e, StackTrace st) {
+          AppLogger.warning('Error al detener stream en background',
+              data: {'error': e.toString()}, tag: 'TherapySession');
+        });
+      }
+      if (mounted) setState(() => _isPaused = true);
+    } else if (state == AppLifecycleState.resumed) {
+      // Resume only if pose detection was enabled and stream is currently off.
+      if (_isPoseDetectionEnabled && !controller.value.isStreamingImages) {
+        controller.startImageStream(_processFrame).catchError((Object e, StackTrace st) {
+          AppLogger.error('Error al reanudar stream',
+              error: e, stackTrace: st, tag: 'TherapySession');
+        });
+      }
+    }
   }
 
   Future<void> _initializePoseDetection() async {
@@ -187,8 +220,15 @@ class _TherapySessionScreenState extends State<TherapySessionScreen> {
           }
         }
       }
-    } catch (e) {
-      // Ignorar errores de procesamiento de frames individuales
+    } catch (e, st) {
+      // Pose detection runs ~30fps; sample to avoid log flooding while still
+      // surfacing systemic failures (e.g. detector closed, image format off).
+      _frameErrorCount++;
+      if (_frameErrorCount == 1 || _frameErrorCount % 60 == 0) {
+        AppLogger.warning('Error procesando frame de pose',
+            data: {'count': _frameErrorCount, 'error': e.toString(), 'stack': st.toString().split('\n').first},
+            tag: 'PoseDetection');
+      }
     } finally {
       _isProcessingFrame = false;
     }
@@ -196,14 +236,18 @@ class _TherapySessionScreenState extends State<TherapySessionScreen> {
 
   void _initializeAI() {
     final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
-    if (apiKey.isNotEmpty) {
-      _model = GenerativeModel(
-        model: 'gemini-3-flash-preview',
-        apiKey: apiKey,
-      );
-      _chatSession = _model.startChat(
-        history: [
-          Content.text('''
+    if (apiKey.isEmpty) {
+      AppLogger.warning('GEMINI_API_KEY ausente; asistente de voz deshabilitado',
+          tag: 'TherapySession');
+      return;
+    }
+    final model = GenerativeModel(
+      model: ApiConstants.geminiModel,
+      apiKey: apiKey,
+    );
+    _chatSession = model.startChat(
+      history: [
+        Content.text('''
 Eres un asistente de voz para ejercicios de fisioterapia. Tu rol es dar consejos cortos y motivadores durante la sesión.
 El usuario está haciendo: ${widget.exercise.title}
 Músculos objetivo: ${widget.exercise.targetMuscles}
@@ -216,19 +260,23 @@ Reglas:
 4. Si el usuario reporta dolor, recomienda parar inmediatamente
 5. Usa emojis ocasionalmente para ser amigable
 '''),
-        ],
-      );
-      
-      // Mensaje inicial
-      _addAiMessage('¡Comenzamos! Recuerda mantener buena postura 💪');
-    }
+      ],
+    );
+
+    // Mensaje inicial
+    _addAiMessage('¡Comenzamos! Recuerda mantener buena postura 💪');
   }
 
   void _scheduleAiTips() {
+    _tipsTimer?.cancel();
     // Dar un consejo cada 20 segundos
-    Timer.periodic(const Duration(seconds: 20), (timer) {
-      if (!mounted || _isPaused) return;
-      
+    _tipsTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_isPaused) return;
+
       if (_tipIndex < _tips.length) {
         _addAiMessage(_tips[_tipIndex]);
         _tipIndex++;
@@ -642,12 +690,15 @@ Reglas:
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _tipsTimer?.cancel();
     // Solo detener el stream si la cámara está activa y transmitiendo
-    if (_cameraController != null && _cameraController!.value.isStreamingImages) {
-      _cameraController!.stopImageStream();
+    final controller = _cameraController;
+    if (controller != null && controller.value.isStreamingImages) {
+      controller.stopImageStream();
     }
-    _cameraController?.dispose();
+    controller?.dispose();
     _poseService.dispose();
     super.dispose();
   }
