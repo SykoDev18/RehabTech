@@ -38,26 +38,47 @@ class AppRouter {
   // cada redirect. Se invalida via [markOnboardingCompleted].
   static bool? _cachedOnboardingDone;
 
-  // Función para obtener el tipo de usuario
+  // Función para obtener el tipo de usuario.
+  //
+  // CRÍTICO: este método se invoca desde el redirect de GoRouter, que
+  // bloquea la navegación hasta que resuelva. Si Firestore queda esperando
+  // red en un dispositivo offline, la UI se congela. Por eso:
+  //  1) Intentamos primero el cache local (Source.cache) que retorna al
+  //     instante si el documento ya fue descargado alguna vez.
+  //  2) Si no hay cache, vamos al servidor con timeout corto.
+  //  3) Si todo falla, asumimos 'patient' para no bloquear.
   static Future<String?> getUserType() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
 
-    // Si ya tenemos el tipo cacheado, usarlo
     if (_cachedUserType != null) return _cachedUserType;
 
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+    final docRef =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
 
+    // 1) Cache primero — offline-friendly.
+    try {
+      final cached =
+          await docRef.get(const GetOptions(source: Source.cache));
+      if (cached.exists) {
+        _cachedUserType = cached.data()?['userType'] as String? ?? 'patient';
+        return _cachedUserType;
+      }
+    } catch (_) {
+      // Cache miss en primer arranque es normal — caemos al servidor.
+    }
+
+    // 2) Servidor con timeout para no bloquear el redirect indefinidamente.
+    try {
+      final doc = await docRef
+          .get(const GetOptions(source: Source.server))
+          .timeout(const Duration(seconds: 6));
       if (doc.exists) {
         _cachedUserType = doc.data()?['userType'] as String? ?? 'patient';
         return _cachedUserType;
       }
-    } catch (e) {
-      // Error logged silently - user defaults to patient
+    } catch (_) {
+      // Sin red o timeout — usamos default sin bloquear navegación.
     }
     return 'patient';
   }

@@ -49,8 +49,11 @@ void main() async {
 
     // Crashlytics: solo recolectar en release (en debug los errores ya
     // salen por consola, recolectarlos contamina los reportes).
+    // Timeout defensivo: si el plugin nativo no responde, no bloqueamos
+    // el arranque por algo que tampoco vamos a usar en debug.
     await FirebaseCrashlytics.instance
-        .setCrashlyticsCollectionEnabled(!kDebugMode);
+        .setCrashlyticsCollectionEnabled(!kDebugMode)
+        .timeout(const Duration(seconds: 3), onTimeout: () {});
 
     // Errores de framework (build/layout/paint) -> Crashlytics.
     FlutterError.onError = (errorDetails) {
@@ -77,15 +80,35 @@ void main() async {
       unawaited(FirebaseCrashlytics.instance.setUserIdentifier(persistedUser.uid));
     }
     
-    // Firebase App Check (protección de APIs)
-    await AppCheckService().initialize();
-    
+    // Firebase App Check (protección de APIs). Timeout para que sin red
+    // el arranque siga; las APIs solo quedarán "menos protegidas".
+    await AppCheckService().initialize().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => AppLogger.warning(
+        'AppCheck no inicializó dentro del timeout (sin red?)',
+        tag: 'App',
+      ),
+    );
+
     // Firebase Analytics
-    await AnalyticsService().initialize();
+    await AnalyticsService().initialize().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => AppLogger.warning(
+        'Analytics no inicializó dentro del timeout',
+        tag: 'App',
+      ),
+    );
     AppLogger.info('Firebase Analytics inicializado', tag: 'App');
-    
-    // Firebase Cloud Messaging (notificaciones)
-    await NotificationService().initialize();
+
+    // Firebase Cloud Messaging. getToken() bloquea sin red; timeout para
+    // no congelar el arranque cuando el dispositivo está offline.
+    await NotificationService().initialize().timeout(
+      const Duration(seconds: 8),
+      onTimeout: () => AppLogger.warning(
+        'NotificationService timeout — el token FCM se reintentará en background',
+        tag: 'App',
+      ),
+    );
     AppLogger.info('Firebase Messaging inicializado', tag: 'App');
     
     // Cargar variables de entorno

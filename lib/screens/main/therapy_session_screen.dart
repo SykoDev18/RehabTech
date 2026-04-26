@@ -680,16 +680,22 @@ Reglas:
     if (user == null) return;
 
     try {
-      final streakResult = await StreakService().updateStreak(user.uid);
-      final newAchievements = await AchievementService().evaluate(
-        AchievementEvaluationContext(
-          userId: user.uid,
-          totalSessions: progressService.progressList.length,
-          currentStreak: streakResult.streak.currentStreak,
-          // TODO: cablear consecutivePainLogDays y noraMessageCount cuando los
-          // flujos correspondientes empiecen a contabilizar.
-        ),
-      );
+      // Timeout para que sin red la navegación al reporte no se quede
+      // bloqueada esperando a Firestore.
+      final streakResult = await StreakService()
+          .updateStreak(user.uid)
+          .timeout(const Duration(seconds: 5));
+      final newAchievements = await AchievementService()
+          .evaluate(
+            AchievementEvaluationContext(
+              userId: user.uid,
+              totalSessions: progressService.progressList.length,
+              currentStreak: streakResult.streak.currentStreak,
+              // TODO: cablear consecutivePainLogDays y noraMessageCount cuando los
+              // flujos correspondientes empiecen a contabilizar.
+            ),
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (!mounted) return;
       final messages = <String>[

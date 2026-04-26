@@ -21,14 +21,11 @@ class AuthRepositoryImpl implements AuthRepository {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   /// Asocia el uid al stream de Crashlytics para que los reportes incluyan
-  /// el usuario afectado. No bloqueamos el login si Crashlytics falla.
-  Future<void> _attachUserToCrashlytics(User? user) async {
+  /// el usuario afectado. Se dispara fire-and-forget para no añadir
+  /// latencia ni bloqueos al login si el plugin tarda en responder.
+  void _attachUserToCrashlytics(User? user) {
     if (user == null) return;
-    try {
-      await FirebaseCrashlytics.instance.setUserIdentifier(user.uid);
-    } catch (_) {
-      // best-effort
-    }
+    FirebaseCrashlytics.instance.setUserIdentifier(user.uid).catchError((_) {});
   }
 
   @override
@@ -37,7 +34,7 @@ class AuthRepositoryImpl implements AuthRepository {
       email: email,
       password: password,
     );
-    await _attachUserToCrashlytics(cred.user);
+    _attachUserToCrashlytics(cred.user);
     return cred;
   }
 
@@ -57,7 +54,7 @@ class AuthRepositoryImpl implements AuthRepository {
     );
 
     final cred = await _auth.signInWithCredential(credential);
-    await _attachUserToCrashlytics(cred.user);
+    _attachUserToCrashlytics(cred.user);
     return cred;
   }
 
@@ -67,7 +64,7 @@ class AuthRepositoryImpl implements AuthRepository {
       email: email,
       password: password,
     );
-    await _attachUserToCrashlytics(cred.user);
+    _attachUserToCrashlytics(cred.user);
     return cred;
   }
 
