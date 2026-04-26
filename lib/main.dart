@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -14,6 +15,7 @@ import 'core/utils/app_check_service.dart';
 // Layered architecture imports
 import 'presentation/providers/theme_provider.dart';
 import 'router/app_router.dart';
+import 'services/connectivity_service.dart';
 import 'services/progress_service.dart';
 import 'services/analytics_service.dart';
 import 'services/notification_service.dart';
@@ -33,6 +35,13 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     AppLogger.info('Firebase Core inicializado', tag: 'App');
+
+    // Persistencia offline de Firestore (lecturas y escrituras se cachean
+    // localmente; las escrituras se replican cuando vuelve la conexión).
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
     
     // Firebase App Check (protección de APIs)
     await AppCheckService().initialize();
@@ -54,6 +63,7 @@ void main() async {
     
     // Inicializar servicios
     await ProgressService().init();
+    ConnectivityService().initialize();
     AppLogger.info('Servicios inicializados', tag: 'App');
     
     AppLogger.info('✅ App lista para ejecutar', tag: 'App');

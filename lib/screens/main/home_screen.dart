@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:rehabtech/models/exercise.dart';
+import 'package:rehabtech/presentation/widgets/streak/streak_widget.dart';
 import 'package:rehabtech/screens/main/ai_chat_screen.dart';
 import 'package:rehabtech/screens/main/exercise_detail_screen.dart';
 import 'package:rehabtech/services/progress_service.dart';
@@ -117,7 +118,15 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             _buildHeader(userName),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8.0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: StreakWidget(),
+              ),
+            ),
+            const SizedBox(height: 16),
             _buildRoutineCard(),
             const SizedBox(height: 24),
             _buildProgressCard(),

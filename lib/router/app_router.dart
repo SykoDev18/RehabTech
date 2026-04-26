@@ -21,6 +21,7 @@ import 'package:rehabtech/screens/profile/high_contrast_screen.dart';
 import 'package:rehabtech/screens/profile/notifications_screen.dart';
 import 'package:rehabtech/screens/profile/help_center_screen.dart';
 import 'package:rehabtech/screens/profile/privacy_policy_screen.dart';
+import 'package:rehabtech/screens/achievements/achievements_screen.dart';
 import 'package:rehabtech/screens/therapist/therapist_main_nav_screen.dart';
 import 'package:rehabtech/models/exercise.dart';
 
@@ -269,7 +270,13 @@ class AppRouter {
         name: 'privacyPolicy',
         builder: (context, state) => const PrivacyPolicyScreen(),
       ),
-      
+
+      GoRoute(
+        path: '/profile/achievements',
+        name: 'achievements',
+        builder: (context, state) => const AchievementsScreen(),
+      ),
+
       // ============ THERAPIST APP ROUTES ============
       GoRoute(
         path: '/therapist',
@@ -335,4 +342,5 @@ extension GoRouterExtension on BuildContext {
   void goToNotifications() => go('/profile/notifications');
   void goToHelpCenter() => go('/profile/help');
   void goToPrivacyPolicy() => go('/profile/privacy');
+  void goToAchievements() => go('/profile/achievements');
 }

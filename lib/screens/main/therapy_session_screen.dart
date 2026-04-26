@@ -8,9 +8,12 @@ import 'package:rehabtech/core/constants/api_constants.dart';
 import 'package:rehabtech/core/utils/logger.dart';
 import 'package:rehabtech/models/exercise.dart';
 import 'package:rehabtech/screens/main/session_report_screen.dart';
+import 'package:rehabtech/services/achievement_service.dart';
 import 'package:rehabtech/services/progress_service.dart';
 import 'package:rehabtech/services/pose_detection_service.dart';
 import 'package:rehabtech/services/analytics_service.dart';
+import 'package:rehabtech/services/streak_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -630,7 +633,7 @@ Reglas:
     );
     
     await progressService.saveProgress(progressData);
-    
+
     // Track analytics
     await AnalyticsService().logExerciseCompleted(
       exerciseId: widget.exercise.id,
@@ -640,7 +643,10 @@ Reglas:
       durationSeconds: _elapsedSeconds,
       completionPercentage: completionPercentage,
     );
-    
+
+    // Actualizar racha y evaluar logros (no bloqueante para la navegación)
+    await _updateStreakAndAchievements(progressService);
+
     // Navegar al reporte
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -656,6 +662,48 @@ Reglas:
         ),
       ),
     );
+  }
+
+  /// Actualiza la racha del usuario en Firestore y evalúa logros recién
+  /// desbloqueados. Si Firestore falla por red u otra razón, se loguea como
+  /// warning y se permite continuar la navegación al reporte.
+  Future<void> _updateStreakAndAchievements(ProgressService progressService) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final streakResult = await StreakService().updateStreak(user.uid);
+      final newAchievements = await AchievementService().evaluate(
+        AchievementEvaluationContext(
+          userId: user.uid,
+          totalSessions: progressService.progressList.length,
+          currentStreak: streakResult.streak.currentStreak,
+          // TODO: cablear consecutivePainLogDays y noraMessageCount cuando los
+          // flujos correspondientes empiecen a contabilizar.
+        ),
+      );
+
+      if (!mounted) return;
+      final messages = <String>[
+        for (final m in streakResult.newMilestones) '🔥 ¡$m días seguidos!',
+        for (final a in newAchievements) '🏆 Logro: ${a.title}',
+      ];
+      if (messages.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(messages.join(' · ')),
+            backgroundColor: const Color(0xFFF59E0B),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.warning(
+        'No se pudo actualizar racha o logros',
+        data: {'error': e.toString()},
+        tag: 'TherapySession',
+      );
+    }
   }
 
   void _endSession() {

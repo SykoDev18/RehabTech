@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../presentation/widgets/common/connectivity_banner.dart';
 import 'patients_screen.dart';
 import 'routines_screen.dart';
 import 'calendar_screen.dart';
@@ -28,22 +29,29 @@ class _TherapistMainNavScreenState extends State<TherapistMainNavScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFDBEAFE), // blue-100
-              Color(0xFFF0FDF4), // green-50
-              Color(0xFFEFF6FF), // blue-50
-            ],
+      body: Column(
+        children: [
+          const ConnectivityBanner(),
+          Expanded(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFDBEAFE), // blue-100
+                    Color(0xFFF0FDF4), // green-50
+                    Color(0xFFEFF6FF), // blue-50
+                  ],
+                ),
+              ),
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _screens,
+              ),
+            ),
           ),
-        ),
-        child: IndexedStack(
-          index: _currentIndex,
-          children: _screens,
-        ),
+        ],
       ),
       bottomNavigationBar: _buildBottomNavBar(),
     );

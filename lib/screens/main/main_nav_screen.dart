@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:rehabtech/presentation/widgets/common/connectivity_banner.dart';
 import 'package:rehabtech/screens/main/home_screen.dart';
 import 'package:rehabtech/screens/main/exercises_screen.dart';
 import 'package:rehabtech/screens/main/messages_screen.dart';
@@ -45,20 +46,27 @@ class _MainNavScreenState extends State<MainNavScreen> {
 
     return Scaffold(
       extendBody: true,
-      body: Stack(
+      body: Column(
         children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFDBEAFE), Color(0xFFD1FAE5)], // blue-100 to green-100
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+          const ConnectivityBanner(),
+          Expanded(
+            child: Stack(
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFDBEAFE), Color(0xFFD1FAE5)], // blue-100 to green-100
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
+                IndexedStack(
+                  index: _selectedIndex,
+                  children: _widgetOptions,
+                ),
+              ],
             ),
-          ),
-          IndexedStack(
-            index: _selectedIndex,
-            children: _widgetOptions,
           ),
         ],
       ),

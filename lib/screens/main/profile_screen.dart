@@ -163,6 +163,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 subtitle: 'Configura tus alertas',
                 onTap: () => context.push('/profile/notifications'),
               ),
+              _MenuItem(
+                icon: LucideIcons.trophy,
+                title: 'Logros',
+                subtitle: 'Insignias y puntos ganados',
+                onTap: () => context.push('/profile/achievements'),
+              ),
             ]),
           ),
         ),
