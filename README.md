@@ -245,6 +245,30 @@ flutter test test/widgets/
 - Android: minSdk 21, targetSdk 34
 - iOS: 12.0+
 
+## 🤖 CI/CD (GitHub Actions)
+
+El workflow `.github/workflows/ci.yml` corre en cada push/PR a `main`/`master`:
+
+1. **analyze** — `flutter analyze --fatal-warnings`
+2. **test** — `flutter test --coverage` (sube `lcov.info` como artefacto)
+3. **build-android** — `flutter build apk --release` (sube el APK como artefacto)
+4. **distribute** — Sube el APK a Firebase App Distribution (solo en push a `main`/`master`, grupo `internal-testers`)
+
+### Secretos requeridos
+
+Configurar en *Settings → Secrets and variables → Actions* del repositorio:
+
+| Secret | Uso | Obligatorio |
+| --- | --- | --- |
+| `KEYSTORE_FILE` | Keystore de release codificado en base64 (`base64 -i upload-keystore.jks`) | Solo para APK firmado |
+| `KEY_ALIAS` | Alias de la key dentro del keystore | Solo para APK firmado |
+| `KEY_PASSWORD` | Password de la key | Solo para APK firmado |
+| `STORE_PASSWORD` | Password del keystore | Solo para APK firmado |
+| `FIREBASE_APP_ID` | App ID de Firebase (formato `1:XXX:android:YYY`) | Para distribución |
+| `FIREBASE_SERVICE_ACCOUNT` | JSON completo de una service account con rol `Firebase App Distribution Admin` | Para distribución |
+
+Si `KEYSTORE_FILE` no está configurado, el job `build-android` igual corre y genera un APK debug-firmado (útil para validación interna). El job `distribute` solo se ejecuta en pushes a la rama principal.
+
 ## 👥 Equipo
 
 Desarrollado con ❤️ para mejorar la calidad de vida de pacientes en rehabilitación.

@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../domain/repositories/auth_repository.dart';
 
@@ -19,18 +20,31 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  /// Asocia el uid al stream de Crashlytics para que los reportes incluyan
+  /// el usuario afectado. No bloqueamos el login si Crashlytics falla.
+  Future<void> _attachUserToCrashlytics(User? user) async {
+    if (user == null) return;
+    try {
+      await FirebaseCrashlytics.instance.setUserIdentifier(user.uid);
+    } catch (_) {
+      // best-effort
+    }
+  }
+
   @override
   Future<UserCredential> signInWithEmail(String email, String password) async {
-    return await _auth.signInWithEmailAndPassword(
+    final cred = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
+    await _attachUserToCrashlytics(cred.user);
+    return cred;
   }
 
   @override
   Future<UserCredential> signInWithGoogle() async {
     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-    
+
     if (googleUser == null) {
       throw Exception('Google sign in aborted');
     }
@@ -42,15 +56,19 @@ class AuthRepositoryImpl implements AuthRepository {
       idToken: googleAuth.idToken,
     );
 
-    return await _auth.signInWithCredential(credential);
+    final cred = await _auth.signInWithCredential(credential);
+    await _attachUserToCrashlytics(cred.user);
+    return cred;
   }
 
   @override
   Future<UserCredential> createUserWithEmail(String email, String password) async {
-    return await _auth.createUserWithEmailAndPassword(
+    final cred = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
+    await _attachUserToCrashlytics(cred.user);
+    return cred;
   }
 
   @override
@@ -62,6 +80,13 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
+    // Limpiar uid en Crashlytics para que los reportes posteriores no
+    // queden asociados al usuario anterior.
+    try {
+      await FirebaseCrashlytics.instance.setUserIdentifier('');
+    } catch (_) {
+      // best-effort
+    }
   }
 
   @override

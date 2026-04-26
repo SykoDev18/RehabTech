@@ -42,6 +42,7 @@ dependencies:
   firebase_storage: any
   firebase_analytics: any
   firebase_messaging: any
+  firebase_crashlytics: any
   flutter_local_notifications: ^18.0.1
   timezone: any
   cloud_firestore: any

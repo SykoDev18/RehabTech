@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -14,6 +17,7 @@ import 'core/utils/app_check_service.dart';
 
 // Layered architecture imports
 import 'presentation/providers/theme_provider.dart';
+import 'presentation/widgets/common/production_error_widget.dart';
 import 'router/app_router.dart';
 import 'services/connectivity_service.dart';
 import 'services/progress_service.dart';
@@ -42,6 +46,36 @@ void main() async {
       persistenceEnabled: true,
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
+
+    // Crashlytics: solo recolectar en release (en debug los errores ya
+    // salen por consola, recolectarlos contamina los reportes).
+    await FirebaseCrashlytics.instance
+        .setCrashlyticsCollectionEnabled(!kDebugMode);
+
+    // Errores de framework (build/layout/paint) -> Crashlytics.
+    FlutterError.onError = (errorDetails) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    };
+
+    // Errores async fuera del Zone -> Crashlytics.
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+
+    // ErrorWidget.builder: en debug mostramos la pantalla roja por defecto
+    // para que sea evidente; en release mostramos un mensaje amigable.
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      if (kDebugMode) return ErrorWidget(details.exception);
+      return const ProductionErrorWidget();
+    };
+
+    // Si hay sesión persistida desde un arranque previo, asociar el uid a
+    // Crashlytics sin esperar al próximo login.
+    final persistedUser = FirebaseAuth.instance.currentUser;
+    if (persistedUser != null) {
+      unawaited(FirebaseCrashlytics.instance.setUserIdentifier(persistedUser.uid));
+    }
     
     // Firebase App Check (protección de APIs)
     await AppCheckService().initialize();
@@ -72,6 +106,7 @@ void main() async {
   }, (error, stackTrace) {
     // Capturar errores no manejados
     ErrorHandler().handle(error, stackTrace: stackTrace, context: 'Unhandled');
+    FirebaseCrashlytics.instance.recordError(error, stackTrace, fatal: true);
   });
 }
 
