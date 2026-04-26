@@ -378,22 +378,41 @@ Reglas:
     }
   }
 
-  /// Toggle para activar/desactivar la detección de poses
+  /// Toggle para activar/desactivar la detección de poses.
+  ///
+  /// Defensivo: si el usuario toca el botón antes de que el CameraController
+  /// termine de inicializar, [startImageStream]/[stopImageStream] lanzan
+  /// `Uninitialized CameraController`. Verificamos `isInitialized` y el
+  /// estado actual del stream antes de cada llamada.
   void _togglePoseDetection() {
     setState(() {
       _isPoseDetectionEnabled = !_isPoseDetectionEnabled;
     });
-    
+
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) {
+      _addAiMessage(_isPoseDetectionEnabled
+          ? '🎯 Detección activada (cámara aún cargando)'
+          : '✋ Modo manual');
+      return;
+    }
+
     if (_isPoseDetectionEnabled) {
       _addAiMessage('🎯 Detección automática activada');
-      // Reiniciar streaming si estaba pausado
-      if (_cameraController != null && _currentCamera != null) {
-        _cameraController!.startImageStream(_processFrame);
+      if (!controller.value.isStreamingImages) {
+        controller.startImageStream(_processFrame).catchError((Object e, StackTrace st) {
+          AppLogger.warning('Error al reanudar stream desde toggle',
+              data: {'error': e.toString()}, tag: 'TherapySession');
+        });
       }
     } else {
       _addAiMessage('✋ Modo manual - toca para contar');
-      // Detener streaming
-      _cameraController?.stopImageStream();
+      if (controller.value.isStreamingImages) {
+        controller.stopImageStream().catchError((Object e, StackTrace st) {
+          AppLogger.warning('Error al detener stream desde toggle',
+              data: {'error': e.toString()}, tag: 'TherapySession');
+        });
+      }
     }
   }
 
