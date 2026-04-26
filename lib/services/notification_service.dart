@@ -13,7 +13,7 @@ import '../core/utils/logger.dart';
 /// Handler para mensajes en background (debe ser top-level function)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  AppLogger.info('Mensaje en background: ${message.messageId}', tag: 'FCM');
+  AppLogger.debug('Mensaje en background: ${message.messageId}', tag: 'FCM');
 }
 
 /// Servicio de notificaciones push con FCM
@@ -132,7 +132,9 @@ class NotificationService {
         
         // Obtener token FCM
         _fcmToken = await _messaging.getToken();
-        AppLogger.info('FCM Token: ${_fcmToken?.substring(0, 20)}...', tag: 'FCM');
+        // El token FCM es sensible (permite enviar push al dispositivo);
+        // se loguea solo en debug.
+        AppLogger.debug('FCM Token: ${_fcmToken?.substring(0, 20)}...', tag: 'FCM');
 
         // Guardar token en Firestore
         await _saveTokenToFirestore(_fcmToken);
@@ -232,13 +234,14 @@ class NotificationService {
 
   /// Manejar cuando se abre la app desde una notificación
   void _handleMessageOpenedApp(RemoteMessage message) {
-    AppLogger.info('App abierta desde notificación: ${message.data}', tag: 'FCM');
+    // El payload puede contener IDs de usuario/conversación; debug-only.
+    AppLogger.debug('App abierta desde notificación: ${message.data}', tag: 'FCM');
     // TODO: Navegar a la pantalla correspondiente según message.data
   }
 
   /// Callback cuando se toca una notificación local
   void _onNotificationTapped(NotificationResponse response) {
-    AppLogger.info('Notificación tocada: ${response.payload}', tag: 'FCM');
+    AppLogger.debug('Notificación tocada: ${response.payload}', tag: 'FCM');
     // TODO: Navegar según el payload
   }
 

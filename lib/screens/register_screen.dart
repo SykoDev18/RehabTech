@@ -7,6 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:rehabtech/domain/validators/password_validator.dart';
+import 'package:rehabtech/presentation/widgets/auth/password_strength_indicator.dart';
 import 'package:rehabtech/router/app_router.dart';
 import 'package:rehabtech/services/analytics_service.dart';
 import 'package:rehabtech/services/notification_service.dart';
@@ -48,6 +50,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _createAccount() async {
+    final passwordResult = PasswordValidator.validate(_passwordController.text);
+    if (!passwordResult.isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(passwordResult.errorMessage ?? 'Contraseña inválida')),
+      );
+      return;
+    }
+
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Las contraseñas no coinciden')),
@@ -218,6 +228,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _buildTextField(controller: _emailController, hintText: 'Correo', exampleText: 'Ej. tu@email.com'),
             const SizedBox(height: 16),
             _buildTextField(controller: _passwordController, hintText: 'Contraseña', isPassword: true),
+            const SizedBox(height: 12),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _passwordController,
+              builder: (context, value, _) =>
+                  PasswordStrengthIndicator(password: value.text),
+            ),
             const SizedBox(height: 16),
             _buildTextField(controller: _confirmPasswordController, hintText: 'Confirmar', isPassword: true),
             const SizedBox(height: 24),

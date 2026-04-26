@@ -17,7 +17,8 @@ class DeepLinkService {
   /// - rehabtech://progress
   /// - https://rehabtech.app/exercise/1
   String? parseDeepLink(Uri uri) {
-    AppLogger.info('Deep link recibido: $uri', tag: 'DeepLink');
+    // Las URIs de deep link pueden contener IDs o códigos de invitación; debug-only.
+    AppLogger.debug('Deep link recibido: $uri', tag: 'DeepLink');
     
     final path = uri.path.isEmpty ? uri.host : uri.path;
     final segments = path.split('/').where((s) => s.isNotEmpty).toList();

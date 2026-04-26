@@ -39,6 +39,11 @@ service cloud.firestore {
     function onlyUpdatesFields(allowedFields) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields);
     }
+
+    // Validar que el documento entrante contenga todos los campos requeridos
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
     
     // ============ COLECCIÓN DE USUARIOS ============
     match /users/{userId} {
@@ -134,16 +139,27 @@ service cloud.firestore {
     // ============ COLECCIÓN DE CONVERSACIONES ============
     match /conversations/{conversationId} {
       // Ambos participantes pueden leer
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() &&
         (resource.data.therapistId == request.auth.uid || resource.data.patientId == request.auth.uid);
-      // Crear conversación si es terapeuta o paciente vinculado
-      allow create: if isAuthenticated();
-      // Actualizar (para lastMessage, etc.)
-      allow update: if isAuthenticated() && 
-        (resource.data.therapistId == request.auth.uid || resource.data.patientId == request.auth.uid);
-      
+      // Crear conversación: el creador debe ser uno de los participantes
+      // y el documento debe traer todos los campos requeridos con tipos correctos.
+      allow create: if isAuthenticated()
+                    && hasRequiredFields(['therapistId', 'patientId', 'lastMessage', 'lastMessageAt', 'createdAt'])
+                    && request.resource.data.therapistId is string
+                    && request.resource.data.patientId is string
+                    && request.resource.data.lastMessage is string
+                    && request.resource.data.lastMessageAt is timestamp
+                    && request.resource.data.createdAt is timestamp
+                    && (request.resource.data.therapistId == request.auth.uid
+                        || request.resource.data.patientId == request.auth.uid);
+      // Actualizar (para lastMessage, etc.) — solo participantes y sin reasignar partes
+      allow update: if isAuthenticated() &&
+        (resource.data.therapistId == request.auth.uid || resource.data.patientId == request.auth.uid)
+        && request.resource.data.therapistId == resource.data.therapistId
+        && request.resource.data.patientId == resource.data.patientId;
+
       match /messages/{messageId} {
-        allow read, write: if isAuthenticated() && 
+        allow read, write: if isAuthenticated() &&
           (get(/databases/$(database)/documents/conversations/$(conversationId)).data.therapistId == request.auth.uid ||
            get(/databases/$(database)/documents/conversations/$(conversationId)).data.patientId == request.auth.uid);
       }
@@ -157,8 +173,18 @@ service cloud.firestore {
 
     // ============ COLECCIÓN DE NOTIFICACIONES ============
     match /notifications/{notificationId} {
-      allow read, write: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated();
+      // Lectura/actualización/eliminación: solo el propietario
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Crear: el propio usuario y con todos los campos requeridos y tipos correctos
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid
+                    && hasRequiredFields(['userId', 'title', 'body', 'type', 'read', 'createdAt'])
+                    && request.resource.data.userId is string
+                    && request.resource.data.title is string
+                    && request.resource.data.body is string
+                    && request.resource.data.type is string
+                    && request.resource.data.read is bool
+                    && request.resource.data.createdAt is timestamp;
     }
 
     // ============ REPORTES/FEEDBACK ============
@@ -180,15 +206,22 @@ service cloud.firestore {
     }
 
     // ============ HISTORIAL DE NOTIFICACIONES ENVIADAS ============
+    // Escritura exclusiva del Admin SDK (Cloud Functions). Los clientes no
+    // pueden crear documentos aquí — el Admin SDK ignora estas reglas.
     match /sent_notifications/{notificationId} {
-      // Solo lectura para el destinatario
-      allow read: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
-      // Crear solo desde backend (Cloud Functions) - regla más permisiva para desarrollo
-      allow create: if isAuthenticated();
-      // Marcar como leída
-      allow update: if isAuthenticated() 
+      // Solo lectura para el destinatario, y solo si el documento ya tiene
+      // los campos requeridos (defensa en profundidad si algo se cuela).
+      allow read: if isAuthenticated()
+                  && resource.data.recipientId == request.auth.uid
+                  && resource.data.keys().hasAll(['recipientId', 'senderId', 'messageId', 'sentAt']);
+      // Bloqueado para clientes — solo Admin SDK puede crear.
+      allow create: if false;
+      // Marcar como leída/leída en — el destinatario puede actualizar solo esos campos.
+      allow update: if isAuthenticated()
                     && resource.data.recipientId == request.auth.uid
                     && onlyUpdatesFields(['read', 'readAt']);
+      // No se permite borrar desde cliente.
+      allow delete: if false;
     }
 
     // ============ STREAKS Y LOGROS ============

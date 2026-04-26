@@ -78,9 +78,21 @@ service firebase.storage {
     }
 
     // ============ ARCHIVOS DE CHAT ============
+    // Solo participantes (terapeuta o paciente) de la conversación pueden
+    // leer o subir adjuntos. Se verifica contra Firestore en cada operación.
     match /chat_attachments/{conversationId}/{fileName} {
-      // Usuarios autenticados pueden subir/leer
-      allow read, write: if isAuthenticated() && isValidSize();
+      function isConversationParticipant() {
+        let conv = firestore.get(
+          /databases/(default)/documents/conversations/$(conversationId)
+        ).data;
+        return isAuthenticated() && (
+          conv.therapistId == request.auth.uid ||
+          conv.patientId == request.auth.uid
+        );
+      }
+
+      allow read: if isConversationParticipant();
+      allow write: if isConversationParticipant() && isValidSize();
     }
 
     // ============ CAPTURAS DE SESIÓN ============

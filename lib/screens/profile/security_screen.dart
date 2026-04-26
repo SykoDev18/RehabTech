@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../domain/validators/password_validator.dart';
+import '../../presentation/widgets/auth/password_strength_indicator.dart';
+
 class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key});
 
@@ -334,45 +337,54 @@ class _SecurityScreenState extends State<SecurityScreen> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Cambiar Contraseña'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: currentPasswordController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Contraseña Actual',
-                prefixIcon: const Icon(LucideIcons.lock),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: currentPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña Actual',
+                  prefixIcon: const Icon(LucideIcons.lock),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: newPasswordController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Nueva Contraseña',
-                prefixIcon: const Icon(LucideIcons.keyRound),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 16),
+              TextField(
+                controller: newPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Nueva Contraseña',
+                  prefixIcon: const Icon(LucideIcons.keyRound),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: confirmPasswordController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Confirmar Contraseña',
-                prefixIcon: const Icon(LucideIcons.keyRound),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 12),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: newPasswordController,
+                builder: (context, value, _) =>
+                    PasswordStrengthIndicator(password: value.text),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: confirmPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Confirmar Contraseña',
+                  prefixIcon: const Icon(LucideIcons.keyRound),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -381,13 +393,26 @@ class _SecurityScreenState extends State<SecurityScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              final passwordResult =
+                  PasswordValidator.validate(newPasswordController.text);
+              if (!passwordResult.isValid) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      passwordResult.errorMessage ?? 'Contraseña inválida',
+                    ),
+                  ),
+                );
+                return;
+              }
+
               if (newPasswordController.text != confirmPasswordController.text) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Las contraseñas no coinciden')),
                 );
                 return;
               }
-              
+
               try {
                 final user = FirebaseAuth.instance.currentUser;
                 if (user != null && user.email != null) {
