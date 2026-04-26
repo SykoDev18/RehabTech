@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rehabtech/services/analytics_service.dart';
 import 'package:rehabtech/screens/login_screen.dart';
 import 'package:rehabtech/screens/register_screen.dart';
 import 'package:rehabtech/screens/forgot_password_screen.dart';
+import 'package:rehabtech/core/transitions/transition_helper.dart';
+import 'package:rehabtech/screens/onboarding/onboarding_screen.dart';
 import 'package:rehabtech/screens/main/main_nav_screen.dart';
 import 'package:rehabtech/screens/main/ai_chat_screen.dart';
 import 'package:rehabtech/screens/main/therapist_chat_screen.dart';
@@ -27,24 +30,28 @@ import 'package:rehabtech/models/exercise.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
-  
+
   // Variable para cachear el tipo de usuario
   static String? _cachedUserType;
-  
+
+  // Cache del flag de onboarding para evitar leer SharedPreferences en
+  // cada redirect. Se invalida via [markOnboardingCompleted].
+  static bool? _cachedOnboardingDone;
+
   // Función para obtener el tipo de usuario
   static Future<String?> getUserType() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
-    
+
     // Si ya tenemos el tipo cacheado, usarlo
     if (_cachedUserType != null) return _cachedUserType;
-    
+
     try {
       final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
-      
+
       if (doc.exists) {
         _cachedUserType = doc.data()?['userType'] as String? ?? 'patient';
         return _cachedUserType;
@@ -54,10 +61,24 @@ class AppRouter {
     }
     return 'patient';
   }
-  
+
   // Limpiar cache al cerrar sesión
   static void clearUserTypeCache() {
     _cachedUserType = null;
+  }
+
+  /// Lee (y cachea) el flag de onboarding desde SharedPreferences.
+  static Future<bool> isOnboardingCompleted() async {
+    if (_cachedOnboardingDone != null) return _cachedOnboardingDone!;
+    final prefs = await SharedPreferences.getInstance();
+    _cachedOnboardingDone = prefs.getBool(onboardingCompletedKey) ?? false;
+    return _cachedOnboardingDone!;
+  }
+
+  /// Llamar tras finalizar el onboarding para que el cache refleje el
+  /// nuevo estado sin tener que volver a leer SharedPreferences.
+  static void markOnboardingCompleted() {
+    _cachedOnboardingDone = true;
   }
   
   static final GoRouter router = GoRouter(
@@ -66,25 +87,39 @@ class AppRouter {
     debugLogDiagnostics: true,
     observers: [AnalyticsService().observer],
     
-    // Redirect para autenticación
+    // Redirect para autenticación + onboarding
     redirect: (context, state) async {
       final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-      final isAuthRoute = state.matchedLocation == '/login' || 
-                          state.matchedLocation == '/register' ||
-                          state.matchedLocation == '/forgot-password' ||
-                          state.matchedLocation == '/';
-      
-      // Si no está logueado y no está en una ruta de auth, redirigir a login
-      if (!isLoggedIn && !isAuthRoute) {
+      final loc = state.matchedLocation;
+      final isOnboardingRoute = loc == '/onboarding';
+      final isAuthRoute = loc == '/login' ||
+                          loc == '/register' ||
+                          loc == '/forgot-password' ||
+                          loc == '/';
+
+      // Onboarding gate: aplica solo a usuarios sin sesión iniciada.
+      // Usuarios autenticados nunca ven onboarding.
+      if (!isLoggedIn) {
+        final onboardingDone = await isOnboardingCompleted();
+        if (!onboardingDone && !isOnboardingRoute) {
+          return '/onboarding';
+        }
+        if (onboardingDone && isOnboardingRoute) {
+          return '/login';
+        }
+      }
+
+      // Si no está logueado y no está en una ruta de auth/onboarding, redirigir a login
+      if (!isLoggedIn && !isAuthRoute && !isOnboardingRoute) {
         return '/login';
       }
-      
-      // Si está logueado y está en la ruta inicial o login
-      if (isLoggedIn && (state.matchedLocation == '/' || state.matchedLocation == '/login')) {
+
+      // Si está logueado y está en la ruta inicial, login u onboarding
+      if (isLoggedIn && (loc == '/' || loc == '/login' || loc == '/onboarding')) {
         final userType = await getUserType();
         return userType == 'therapist' ? '/therapist' : '/main';
       }
-      
+
       return null;
     },
     
@@ -103,19 +138,29 @@ class AppRouter {
       GoRoute(
         path: '/login',
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.fade(child: const LoginScreen()),
       ),
-      
+
       GoRoute(
         path: '/register',
         name: 'register',
-        builder: (context, state) => const RegisterScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.fade(child: const RegisterScreen()),
       ),
-      
+
       GoRoute(
         path: '/forgot-password',
         name: 'forgotPassword',
-        builder: (context, state) => const ForgotPasswordScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.fade(child: const ForgotPasswordScreen()),
+      ),
+
+      GoRoute(
+        path: '/onboarding',
+        name: 'onboarding',
+        pageBuilder: (context, state) =>
+            TransitionHelper.fade(child: const OnboardingScreen()),
       ),
       
       // ============ MAIN APP ROUTES (PATIENT) ============
@@ -226,55 +271,64 @@ class AppRouter {
       GoRoute(
         path: '/profile/edit',
         name: 'editProfile',
-        builder: (context, state) => const EditProfileScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.slideFromRight(child: const EditProfileScreen()),
       ),
-      
+
       GoRoute(
         path: '/profile/security',
         name: 'security',
-        builder: (context, state) => const SecurityScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.slideFromRight(child: const SecurityScreen()),
       ),
-      
+
       GoRoute(
         path: '/profile/therapist',
         name: 'myTherapist',
-        builder: (context, state) => const MyTherapistScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.slideFromRight(child: const MyTherapistScreen()),
       ),
-      
+
       GoRoute(
         path: '/profile/text-size',
         name: 'textSize',
-        builder: (context, state) => const TextSizeScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.slideFromRight(child: const TextSizeScreen()),
       ),
-      
+
       GoRoute(
         path: '/profile/high-contrast',
         name: 'highContrast',
-        builder: (context, state) => const HighContrastScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.slideFromRight(child: const HighContrastScreen()),
       ),
-      
+
       GoRoute(
         path: '/profile/notifications',
         name: 'notifications',
-        builder: (context, state) => const NotificationsScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.slideFromRight(child: const NotificationsScreen()),
       ),
-      
+
       GoRoute(
         path: '/profile/help',
         name: 'helpCenter',
-        builder: (context, state) => const HelpCenterScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.slideFromRight(child: const HelpCenterScreen()),
       ),
-      
+
       GoRoute(
         path: '/profile/privacy',
         name: 'privacyPolicy',
-        builder: (context, state) => const PrivacyPolicyScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.slideFromRight(child: const PrivacyPolicyScreen()),
       ),
 
       GoRoute(
         path: '/profile/achievements',
         name: 'achievements',
-        builder: (context, state) => const AchievementsScreen(),
+        pageBuilder: (context, state) =>
+            TransitionHelper.slideFromRight(child: const AchievementsScreen()),
       ),
 
       // ============ THERAPIST APP ROUTES ============

@@ -13,6 +13,7 @@ import 'package:rehabtech/services/progress_service.dart';
 import 'package:rehabtech/services/pose_detection_service.dart';
 import 'package:rehabtech/services/analytics_service.dart';
 import 'package:rehabtech/services/streak_service.dart';
+import 'package:rehabtech/presentation/widgets/exercise/completion_celebration.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -396,7 +397,7 @@ Reglas:
     }
   }
 
-  void _navigateToReport() {
+  Future<void> _navigateToReport() async {
     // Agregar feedback basado en el rendimiento
     if (_currentRep >= widget.exercise.reps * 0.8) {
       _feedbackGood.add('Excelente resistencia durante la sesión');
@@ -407,8 +408,15 @@ Reglas:
     if (_currentRep < widget.exercise.reps * 0.5) {
       _feedbackImprove.add('Trabaja en aumentar el número de repeticiones');
     }
-    
-    // Mostrar diálogo de dolor antes de ir al reporte
+
+    // Celebración (~2s, no bloqueante para el usuario) y luego pain prompt.
+    await CompletionCelebration.show(
+      context,
+      exercisesCompleted: _currentRep,
+      durationSeconds: _elapsedSeconds,
+    );
+
+    if (!mounted) return;
     _showPainLevelDialog();
   }
   

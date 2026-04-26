@@ -22,15 +22,17 @@ class AchievementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = const Color(0xFFF59E0B);
-    final iconColor = unlocked ? accent : Colors.grey.shade400;
-    final titleColor = unlocked ? const Color(0xFF111827) : Colors.grey.shade500;
+    final colorScheme = Theme.of(context).colorScheme;
+    const accent = Color(0xFFF59E0B);
+    final iconColor = unlocked ? accent : colorScheme.onSurfaceVariant;
+    final titleColor =
+        unlocked ? colorScheme.onSurface : colorScheme.onSurfaceVariant;
     final bgColor = unlocked
         ? accent.withValues(alpha: 0.08)
-        : Colors.grey.shade100;
+        : colorScheme.surfaceContainerHighest;
     final borderColor = unlocked
         ? accent.withValues(alpha: 0.3)
-        : Colors.grey.shade300;
+        : colorScheme.outlineVariant;
 
     return Container(
       padding: const EdgeInsets.all(12),
