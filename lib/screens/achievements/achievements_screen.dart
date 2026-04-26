@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../domain/constants/achievement_catalog.dart';
 import '../../domain/entities/user_achievement_entity.dart';
 import '../../data/repositories/achievement_repository_impl.dart';
+import '../../presentation/widgets/common/app_gradient_background.dart';
 import 'widgets/achievement_card.dart';
 
 class AchievementsScreen extends StatelessWidget {
@@ -17,14 +18,7 @@ class AchievementsScreen extends StatelessWidget {
     final repository = AchievementRepositoryImpl();
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFDBEAFE), Color(0xFFD1FAE5)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
+      body: AppGradientBackground(
         child: SafeArea(
           child: user == null
               ? const Center(child: Text('Inicia sesión para ver tus logros'))
@@ -96,6 +90,7 @@ class AchievementsScreen extends StatelessWidget {
     required int totalCount,
     required int totalPoints,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
@@ -108,19 +103,23 @@ class AchievementsScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: themedGlassColor(context),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(LucideIcons.arrowLeft, size: 22),
+                  child: Icon(
+                    LucideIcons.arrowLeft,
+                    size: 22,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
-              const Text(
+              Text(
                 'Logros',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827),
+                  color: colorScheme.onSurface,
                 ),
               ),
             ],
@@ -129,15 +128,19 @@ class AchievementsScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.6),
+              color: themedGlassColor(context),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+              border: Border.all(color: themedGlassBorder(context)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _Stat(label: 'Desbloqueados', value: '$unlockedCount/$totalCount'),
-                Container(width: 1, height: 32, color: Colors.grey.shade300),
+                Container(
+                  width: 1,
+                  height: 32,
+                  color: colorScheme.outlineVariant,
+                ),
                 _Stat(label: 'Puntos', value: '$totalPoints'),
               ],
             ),
@@ -156,6 +159,7 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       children: [
         Text(
@@ -168,7 +172,7 @@ class _Stat extends StatelessWidget {
         ),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
         ),
       ],
     );

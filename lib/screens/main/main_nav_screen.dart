@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:rehabtech/presentation/widgets/common/app_gradient_background.dart';
 import 'package:rehabtech/presentation/widgets/common/connectivity_banner.dart';
 import 'package:rehabtech/screens/main/home_screen.dart';
 import 'package:rehabtech/screens/main/exercises_screen.dart';
@@ -41,8 +42,11 @@ class _MainNavScreenState extends State<MainNavScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     const Color activeColor = Color(0xFF2563EB); // blue-600
-    const Color inactiveColor = Color(0xFF4B5563); // gray-600
+    final Color inactiveColor = isDark
+        ? const Color(0xFF94A3B8) // slate-400
+        : const Color(0xFF4B5563); // gray-600
 
     return Scaffold(
       extendBody: true,
@@ -50,22 +54,11 @@ class _MainNavScreenState extends State<MainNavScreen> {
         children: [
           const ConnectivityBanner(),
           Expanded(
-            child: Stack(
-              children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFDBEAFE), Color(0xFFD1FAE5)], // blue-100 to green-100
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                ),
-                IndexedStack(
-                  index: _selectedIndex,
-                  children: _widgetOptions,
-                ),
-              ],
+            child: AppGradientBackground(
+              child: IndexedStack(
+                index: _selectedIndex,
+                children: _widgetOptions,
+              ),
             ),
           ),
         ],
@@ -74,7 +67,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
           child: BottomNavigationBar(
-            backgroundColor: Colors.white.withValues(alpha: 0.40),
+            backgroundColor: themedGlassColor(context, alpha: 0.4),
             elevation: 0,
             type: BottomNavigationBarType.fixed,
             selectedItemColor: activeColor,
@@ -83,12 +76,12 @@ class _MainNavScreenState extends State<MainNavScreen> {
             onTap: _onItemTapped,
             items: [
               BottomNavigationBarItem(
-                icon: SvgPicture.asset('assets/house.svg', colorFilter: const ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
+                icon: SvgPicture.asset('assets/house.svg', colorFilter: ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
                 activeIcon: SvgPicture.asset('assets/house.svg', colorFilter: const ColorFilter.mode(activeColor, BlendMode.srcIn)),
                 label: 'Inicio',
               ),
               BottomNavigationBarItem(
-                icon: SvgPicture.asset('assets/dumbbell.svg', colorFilter: const ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
+                icon: SvgPicture.asset('assets/dumbbell.svg', colorFilter: ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
                 activeIcon: SvgPicture.asset('assets/dumbbell.svg', colorFilter: const ColorFilter.mode(activeColor, BlendMode.srcIn)),
                 label: 'Ejercicios',
               ),
@@ -98,12 +91,12 @@ class _MainNavScreenState extends State<MainNavScreen> {
                 label: 'Mensajes',
               ),
               BottomNavigationBarItem(
-                icon: SvgPicture.asset('assets/trending-up.svg', colorFilter: const ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
+                icon: SvgPicture.asset('assets/trending-up.svg', colorFilter: ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
                 activeIcon: SvgPicture.asset('assets/trending-up.svg', colorFilter: const ColorFilter.mode(activeColor, BlendMode.srcIn)),
                 label: 'Progreso',
               ),
               BottomNavigationBarItem(
-                icon: SvgPicture.asset('assets/user.svg', colorFilter: const ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
+                icon: SvgPicture.asset('assets/user.svg', colorFilter: ColorFilter.mode(inactiveColor, BlendMode.srcIn)),
                 activeIcon: SvgPicture.asset('assets/user.svg', colorFilter: const ColorFilter.mode(activeColor, BlendMode.srcIn)),
                 label: 'Perfil',
               ),

@@ -41,6 +41,33 @@ class AppColors {
       Color(0xFFc8e6c9),
     ],
   );
+
+  /// Paleta de fondo principal — variante clara. Azul-100 → verde-100,
+  /// el patrón usado por todos los shells y pantallas con gradiente.
+  static const List<Color> backgroundGradientLight = [
+    Color(0xFFDBEAFE), // blue-100
+    Color(0xFFD1FAE5), // green-100
+  ];
+
+  /// Variante oscura: slate-900 a teal-900 (mantiene el matiz azul→verde
+  /// del modo claro pero con suficiente contraste para texto claro).
+  static const List<Color> backgroundGradientDark = [
+    Color(0xFF0F172A), // slate-900
+    Color(0xFF134E4A), // teal-900
+  ];
+
+  /// Variante 3-stop usada por el shell de terapeuta.
+  static const List<Color> backgroundGradient3Light = [
+    Color(0xFFDBEAFE), // blue-100
+    Color(0xFFF0FDF4), // green-50
+    Color(0xFFEFF6FF), // blue-50
+  ];
+
+  static const List<Color> backgroundGradient3Dark = [
+    Color(0xFF0F172A), // slate-900
+    Color(0xFF134E4A), // teal-900
+    Color(0xFF1E1B4B), // indigo-950
+  ];
   
   // Semantic colors
   static const Color success = Color(0xFF22C55E);

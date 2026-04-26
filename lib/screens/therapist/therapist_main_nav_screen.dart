@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../presentation/widgets/common/app_gradient_background.dart';
 import '../../presentation/widgets/common/connectivity_banner.dart';
 import 'patients_screen.dart';
 import 'routines_screen.dart';
@@ -33,18 +34,10 @@ class _TherapistMainNavScreenState extends State<TherapistMainNavScreen> {
         children: [
           const ConnectivityBanner(),
           Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFDBEAFE), // blue-100
-                    Color(0xFFF0FDF4), // green-50
-                    Color(0xFFEFF6FF), // blue-50
-                  ],
-                ),
-              ),
+            child: AppGradientBackground(
+              threeStop: true,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
               child: IndexedStack(
                 index: _currentIndex,
                 children: _screens,
@@ -58,6 +51,7 @@ class _TherapistMainNavScreenState extends State<TherapistMainNavScreen> {
   }
 
   Widget _buildBottomNavBar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ClipRRect(
       borderRadius: const BorderRadius.only(
         topLeft: Radius.circular(32),
@@ -68,14 +62,14 @@ class _TherapistMainNavScreenState extends State<TherapistMainNavScreen> {
         child: Container(
           height: 80,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.95),
+            color: themedGlassColor(context, alpha: 0.95),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(32),
               topRight: Radius.circular(32),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
                 blurRadius: 20,
                 offset: const Offset(0, -5),
               ),

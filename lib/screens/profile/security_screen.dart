@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../domain/validators/password_validator.dart';
 import '../../presentation/widgets/auth/password_strength_indicator.dart';
+import '../../presentation/widgets/common/app_gradient_background.dart';
 
 class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key});
@@ -19,18 +20,11 @@ class _SecurityScreenState extends State<SecurityScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.blue[50]!,
-              Colors.green[50]!,
-            ],
-          ),
-        ),
+      body: AppGradientBackground(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
         child: SafeArea(
           child: Column(
             children: [
@@ -44,19 +38,23 @@ class _SecurityScreenState extends State<SecurityScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: themedGlassColor(context),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(LucideIcons.arrowLeft, size: 22),
+                        child: Icon(
+                          LucideIcons.arrowLeft,
+                          size: 22,
+                          color: colorScheme.onSurface,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const Text(
+                    Text(
                       'Seguridad',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF111827),
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -161,43 +159,50 @@ class _SecurityScreenState extends State<SecurityScreen> {
   }
   
   Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF6B7280),
+    return Builder(
+      builder: (context) => Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
-  
+
   Widget _buildSecurityCard(List<Widget> children) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-          ),
-          child: Column(
-            children: children.asMap().entries.map((entry) {
-              final index = entry.key;
-              final child = entry.value;
-              return Column(
-                children: [
-                  child,
-                  if (index < children.length - 1)
-                    Divider(
-                      height: 1,
-                      indent: 56,
-                      color: Colors.grey.withValues(alpha: 0.2),
-                    ),
-                ],
-              );
-            }).toList(),
+    return Builder(
+      builder: (context) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: themedGlassColor(context),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: themedGlassBorder(context)),
+            ),
+            child: Column(
+              children: children.asMap().entries.map((entry) {
+                final index = entry.key;
+                final child = entry.value;
+                return Column(
+                  children: [
+                    child,
+                    if (index < children.length - 1)
+                      Divider(
+                        height: 1,
+                        indent: 56,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outlineVariant
+                            .withValues(alpha: 0.5),
+                      ),
+                  ],
+                );
+              }).toList(),
+            ),
           ),
         ),
       ),

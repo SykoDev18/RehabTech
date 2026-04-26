@@ -173,94 +173,110 @@ class AppRouter {
           GoRoute(
             path: 'chat/nora',
             name: 'noraChat',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final conversationId = state.uri.queryParameters['conversationId'];
-              return AiChatScreen(conversationId: conversationId);
+              return TransitionHelper.slideFromRight(
+                child: AiChatScreen(conversationId: conversationId),
+              );
             },
           ),
-          
+
           // Chat con terapeuta
           GoRoute(
             path: 'chat/therapist',
             name: 'therapistChat',
-            builder: (context, state) => const TherapistChatScreen(),
+            pageBuilder: (context, state) => TransitionHelper.slideFromRight(
+              child: const TherapistChatScreen(),
+            ),
           ),
-          
+
           // Detalle de ejercicio (soporta deep linking por ID)
           GoRoute(
             path: 'exercise/:id',
             name: 'exerciseDetail',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               // Primero intentar obtener de extra (navegación interna)
               final extraExercise = state.extra as Exercise?;
               if (extraExercise != null) {
-                return ExerciseDetailScreen(exercise: extraExercise);
+                return TransitionHelper.slideFromRight(
+                  child: ExerciseDetailScreen(exercise: extraExercise),
+                );
               }
-              
+
               // Si no hay extra, buscar por ID (deep link)
               final id = state.pathParameters['id']!;
               final exercise = allExercises.where((e) => e.id == id).firstOrNull;
-              
+
               if (exercise != null) {
-                return ExerciseDetailScreen(exercise: exercise);
+                return TransitionHelper.slideFromRight(
+                  child: ExerciseDetailScreen(exercise: exercise),
+                );
               }
-              
+
               // Ejercicio no encontrado - mostrar error
-              return Scaffold(
-                appBar: AppBar(title: const Text('Error')),
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text('Ejercicio "$id" no encontrado'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => context.go('/main'),
-                        child: const Text('Volver al inicio'),
-                      ),
-                    ],
+              return TransitionHelper.fade(
+                child: Scaffold(
+                  appBar: AppBar(title: const Text('Error')),
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text('Ejercicio "$id" no encontrado'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => context.go('/main'),
+                          child: const Text('Volver al inicio'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
             },
           ),
-          
-          // Countdown antes de sesión
+
+          // Countdown antes de sesión: scaleFade para marcar entrada a sesión
           GoRoute(
             path: 'countdown',
             name: 'countdown',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final exercise = state.extra as Exercise;
-              return CountdownScreen(exercise: exercise);
+              return TransitionHelper.scaleFade(
+                child: CountdownScreen(exercise: exercise),
+              );
             },
           ),
-          
+
           // Sesión de terapia
           GoRoute(
             path: 'therapy-session',
             name: 'therapySession',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final exercise = state.extra as Exercise;
-              return TherapySessionScreen(exercise: exercise);
+              return TransitionHelper.fade(
+                child: TherapySessionScreen(exercise: exercise),
+              );
             },
           ),
-          
+
           // Reporte de sesión
           GoRoute(
             path: 'session-report',
             name: 'sessionReport',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final extra = state.extra as Map<String, dynamic>;
-              return SessionReportScreen(
-                exercise: extra['exercise'] as Exercise,
-                completedReps: extra['completedReps'] as int,
-                totalReps: extra['totalReps'] as int,
-                elapsedSeconds: extra['elapsedSeconds'] as int,
-                feedbackGood: extra['feedbackGood'] as List<String>,
-                feedbackImprove: extra['feedbackImprove'] as List<String>,
-                painLevel: extra['painLevel'] as int? ?? 0,
+              return TransitionHelper.scaleFade(
+                child: SessionReportScreen(
+                  exercise: extra['exercise'] as Exercise,
+                  completedReps: extra['completedReps'] as int,
+                  totalReps: extra['totalReps'] as int,
+                  elapsedSeconds: extra['elapsedSeconds'] as int,
+                  feedbackGood: extra['feedbackGood'] as List<String>,
+                  feedbackImprove: extra['feedbackImprove'] as List<String>,
+                  painLevel: extra['painLevel'] as int? ?? 0,
+                ),
               );
             },
           ),

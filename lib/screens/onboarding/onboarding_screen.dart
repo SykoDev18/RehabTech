@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../presentation/widgets/common/app_gradient_background.dart';
 import '../../router/app_router.dart';
 import 'onboarding_data.dart';
 import 'widgets/onboarding_page.dart';
@@ -61,15 +62,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFDBEAFE), Color(0xFFD1FAE5)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
+      body: AppGradientBackground(
         child: SafeArea(
           child: Column(
             children: [
@@ -82,12 +77,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     if (!_isLastPage)
                       TextButton(
                         onPressed: _skipToLast,
-                        child: const Text(
+                        child: Text(
                           'Saltar',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF4B5563),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -136,6 +131,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildDots() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(onboardingSlides.length, (index) {
@@ -146,7 +142,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           width: isActive ? 24 : 8,
           height: 8,
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF2563EB) : Colors.grey.shade300,
+            color: isActive
+                ? const Color(0xFF2563EB)
+                : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(4),
           ),
         );
