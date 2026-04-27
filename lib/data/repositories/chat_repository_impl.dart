@@ -1,25 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import '../../domain/entities/chat_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../../core/constants/api_constants.dart';
 
-/// Firebase implementation of ChatRepository
+/// Firebase implementation of ChatRepository.
+///
+/// Storage only — AI generation lives in
+/// [package:rehabtech/services/nora_service.dart].
 class ChatRepositoryImpl implements ChatRepository {
   final FirebaseFirestore _firestore;
-  GenerativeModel? _aiModel;
 
   ChatRepositoryImpl({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
-
-  GenerativeModel get _model {
-    _aiModel ??= GenerativeModel(
-      model: ApiConstants.geminiModel,
-      apiKey: dotenv.env['GEMINI_API_KEY'] ?? '',
-    );
-    return _aiModel!;
-  }
 
   // ============ Conversations ============
 
@@ -210,44 +202,6 @@ class ChatRepositoryImpl implements ChatRepository {
           'context': context,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-  }
-
-  // ============ AI Chat ============
-
-  @override
-  Future<String> sendToNora(String message, String? patientContext) async {
-    final chat = _model.startChat(
-      history: [
-        Content.text(_getNoraSystemPrompt(patientContext)),
-      ],
-    );
-    
-    final response = await chat.sendMessage(Content.text(message));
-    return response.text ?? 'No obtuve respuesta. Intenta de nuevo.';
-  }
-
-  String _getNoraSystemPrompt(String? patientContext) {
-    String contextSection = '';
-    if (patientContext != null && patientContext.isNotEmpty) {
-      contextSection = '''
-
-# CONTEXTO DEL PACIENTE
-$patientContext
-''';
-    }
-
-    return '''
-Eres "Nora", una asistente de IA especializada en apoyo fisioterapéutico.
-$contextSection
-# IDENTIDAD Y TONO
-- Personalidad: Empática, motivadora y profesional
-- Comunícate en un tono cálido pero competente
-- Sé concisa pero completa en tus respuestas
-
-# LÍMITES CRÍTICOS DE SEGURIDAD
-⚠️ NUNCA diagnostiques condiciones médicas ni prescribas tratamientos.
-⚠️ Ante dolor severo o síntomas de alarma, recomienda consultar al profesional.
-''';
   }
 
   // ============ Mapping helpers ============

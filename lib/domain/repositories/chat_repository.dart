@@ -1,6 +1,11 @@
 import '../entities/chat_entity.dart';
 
-/// Chat repository interface for Nora AI and therapist chats
+/// Chat repository interface for Nora AI and therapist chats.
+///
+/// Note: AI generation is *not* a repository concern. See
+/// [package:rehabtech/services/nora_service.dart] for the model-call path
+/// (sanitisation, rate limiting, error handling). This interface owns
+/// storage only.
 abstract class ChatRepository {
   // ============ Conversations ============
   
@@ -44,8 +49,4 @@ abstract class ChatRepository {
   /// Update patient context
   Future<void> updatePatientContext(String userId, String context);
   
-  // ============ AI Chat ============
-  
-  /// Send message to Nora AI and get response
-  Future<String> sendToNora(String message, String? patientContext);
 }

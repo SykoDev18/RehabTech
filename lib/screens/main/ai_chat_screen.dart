@@ -1,13 +1,13 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:rehabtech/core/constants/api_constants.dart';
 import 'package:rehabtech/core/utils/logger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rehabtech/services/analytics_service.dart';
+import 'package:rehabtech/services/nora_service.dart';
 
 enum MessageAuthor { user, nora }
 
@@ -160,10 +160,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
   bool _isInitialized = false;
   bool _initFailed = false;
   String? _initError;
-  final String? _apiKey = dotenv.env['GEMINI_API_KEY'];
-  late final GenerativeModel _model;
-  ChatSession? _chat;
-  
+
   // Firebase
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
@@ -179,7 +176,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 
   Future<void> _initializeChat() async {
-    final key = _apiKey;
+    final key = dotenv.env['GEMINI_API_KEY'];
     if (key == null || key.isEmpty) {
       AppLogger.error('No se pudo cargar GEMINI_API_KEY desde .env', tag: 'NoraChat');
       if (mounted) {
@@ -191,27 +188,14 @@ class _AiChatScreenState extends State<AiChatScreen> {
       return;
     }
 
-    _model = GenerativeModel(
-      model: ApiConstants.geminiModel,
-      apiKey: key,
-    );
-
-    // Cargar datos del usuario
     await _loadUserData();
-
-    // Cargar contexto del paciente de conversaciones anteriores
     await _loadPatientContext();
 
-    // Si hay una conversación existente, cargar mensajes
     if (_conversationId != null) {
       await _loadConversation();
     } else {
-      // Crear nueva conversación
       await _createNewConversation();
     }
-
-    // Inicializar el chat con el historial
-    _initializeChatSession();
 
     if (mounted) setState(() => _isInitialized = true);
   }
@@ -306,81 +290,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
     }
   }
 
-  void _initializeChatSession() {
-    List<Content> history = [
-      Content.text(_getNoraSystemPrompt()),
-      Content.model([
-        TextPart('¡Hola${_userName != null ? ' $_userName' : ''}! Soy Nora, tu asistente de fisioterapia. Estoy aquí para ayudarte con tus ejercicios y responder tus dudas. ¿En qué te puedo ayudar hoy?')
-      ]),
-    ];
-
-    // Agregar mensajes previos al historial de Gemini
-    for (var msg in _messages.skip(1)) {
-      if (msg.author == MessageAuthor.user) {
-        history.add(Content.text(msg.text));
-      } else {
-        history.add(Content.model([TextPart(msg.text)]));
-      }
-    }
-
-    _chat = _model.startChat(history: history);
-  }
-
-  String _getNoraSystemPrompt() {
-    String contextSection = '';
-    if (_patientContext.isNotEmpty) {
-      contextSection = '''
-
-# CONTEXTO DEL PACIENTE (información de conversaciones anteriores)
-$_patientContext
-''';
-    }
-
-    String userNameSection = '';
-    if (_userName != null) {
-      userNameSection = '\nEl nombre del paciente es: $_userName\n';
-    }
-
-    return '''
-Eres "Nora", una asistente de IA especializada en apoyo fisioterapéutico.
-$userNameSection$contextSection
-# IDENTIDAD Y TONO
-- Personalidad: Empática, motivadora y profesional
-- Comunícate en un tono cálido pero competente
-- Usa el nombre del usuario cuando lo conozcas
-- Sé concisa pero completa en tus respuestas
-- Utiliza lenguaje accesible, evitando jerga innecesaria
-
-# CAPACIDADES Y OBJETIVOS
-Tu función es:
-- Guiar a usuarios durante ejercicios de fisioterapia prescritos
-- Ofrecer retroalimentación sobre técnica y forma
-- Motivar y mantener el ánimo durante la rehabilitación
-- Responder dudas sobre ejercicios específicos de su plan
-- Recordar principios de biomecánica y movimiento correcto
-- IMPORTANTE: Recuerda información importante que el paciente comparta (lesiones, condiciones, preferencias, progreso)
-
-# LÍMITES CRÍTICOS DE SEGURIDAD (OBLIGATORIO)
-⚠️ NUNCA debes:
-- Diagnosticar condiciones médicas
-- Prescribir medicamentos o tratamientos
-- Modificar planes de tratamiento sin supervisión profesional
-- Interpretar estudios médicos (rayos X, resonancias, etc.)
-- Reemplazar la evaluación de un profesional de salud
-
-⚠️ SIEMPRE debes recomendar atención profesional si el usuario reporta:
-- Dolor agudo, severo o que empeora
-- Dolor nuevo en áreas no relacionadas con su tratamiento
-- Hinchazón súbita, enrojecimiento o calor en articulaciones
-- Mareos, náuseas o síntomas inusuales durante ejercicios
-
-# RECORDATORIOS FINALES
-- Eres una herramienta de APOYO, no reemplazas a profesionales de salud
-- Ante la duda sobre seguridad, siempre recomienda consultar al fisioterapeuta
-- Mantén un equilibrio entre ser motivadora y ser cautelosa con la seguridad
-''';
-  }
-
   Future<void> _saveMessage(ChatMessage message) async {
     final user = _auth.currentUser;
     if (user == null || _conversationId == null) return;
@@ -446,13 +355,11 @@ Tu función es:
 
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
-    if (text.isEmpty || _chat == null) return;
+    if (text.isEmpty) return;
 
-    // Track chat message
     AnalyticsService().logChatMessage(isUser: true);
-
     _textController.clear();
-    
+
     final userMessage = ChatMessage(text, MessageAuthor.user);
     setState(() {
       _messages.add(userMessage);
@@ -460,47 +367,51 @@ Tu función es:
     });
     _scrollToBottom();
 
-    // Guardar mensaje del usuario
+    // Persist the user turn first so NoraService.buildHistoryFromFirestore
+    // would see the same shape on a future cold start.
     await _saveMessage(userMessage);
-
-    // Extraer y guardar información relevante del paciente
     await _extractAndSavePatientInfo(text);
 
-    try {
-      var response = await _chat!.sendMessage(Content.text(text));
-      var noraResponse = response.text;
+    // Build history payload from prior in-memory messages, skipping the
+    // welcome sentinel at index 0 and the user turn we just added.
+    final priorTurns = _messages
+        .skip(1)
+        .where((m) => m != userMessage)
+        .map((m) => {
+              'text': m.text,
+              'author': m.author == MessageAuthor.user ? 'user' : 'nora',
+            })
+        .toList();
+    final history = NoraService().buildHistoryFromFirestore(priorTurns);
 
-      if (noraResponse != null) {
-        final noraMessage = ChatMessage(noraResponse, MessageAuthor.nora);
-        setState(() {
-          _messages.add(noraMessage);
-        });
-        
-        // Guardar respuesta de Nora
-        await _saveMessage(noraMessage);
-      } else {
-        final errorMessage = ChatMessage('No obtuve respuesta. Intenta de nuevo.', MessageAuthor.nora);
-        setState(() {
-          _messages.add(errorMessage);
-        });
-      }
-    } catch (e, st) {
-      AppLogger.error('Error al enviar mensaje a Nora', error: e, stackTrace: st, tag: 'NoraChat');
-      String errorMsg = 'Oops, algo salió mal. Intenta de nuevo.';
-      if (e.toString().contains('API key')) {
-        errorMsg = 'Error de API key. Verifica tu configuración.';
-      } else if (e.toString().contains('quota') || e.toString().contains('limit')) {
-        errorMsg = 'Se alcanzó el límite de uso. Intenta más tarde.';
-      }
-      setState(() {
-        _messages.add(ChatMessage(errorMsg, MessageAuthor.nora));
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-      _scrollToBottom();
+    final NoraResponse response = await NoraService().sendMessage(
+      userInput: text,
+      history: history,
+      userName: _userName,
+      patientContext: _patientContext.isNotEmpty ? _patientContext : null,
+    );
+
+    if (kDebugMode && response is! NoraSuccess) {
+      AppLogger.info(
+        '[Nora] non-success response: ${response.runtimeType}',
+        tag: 'NoraChat',
+      );
     }
+
+    if (!mounted) return;
+    final reply = ChatMessage(response.userMessage, MessageAuthor.nora);
+    setState(() {
+      _messages.add(reply);
+      _isLoading = false;
+    });
+
+    // Only persist genuine model replies. Canned safety / error responses
+    // would pollute Firestore history and risk re-injection on reload.
+    if (response is NoraSuccess) {
+      await _saveMessage(reply);
+    }
+
+    _scrollToBottom();
   }
 
   @override
@@ -901,8 +812,7 @@ Tu función es:
                         _conversationId = null;
                         _messages.clear();
                         await _createNewConversation();
-                        _initializeChatSession();
-                        setState(() => _isInitialized = true);
+                        if (mounted) setState(() => _isInitialized = true);
                       },
                       icon: Container(
                         padding: const EdgeInsets.all(8),
@@ -970,8 +880,9 @@ Tu función es:
                                 setState(() => _isInitialized = false);
                                 _conversationId = chat.id;
                                 await _loadConversation();
-                                _initializeChatSession();
-                                setState(() => _isInitialized = true);
+                                if (mounted) {
+                                  setState(() => _isInitialized = true);
+                                }
                               }
                             },
                             leading: Container(
