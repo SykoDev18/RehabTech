@@ -19,10 +19,18 @@ class DeepLinkService {
   String? parseDeepLink(Uri uri) {
     // Las URIs de deep link pueden contener IDs o códigos de invitación; debug-only.
     AppLogger.debug('Deep link recibido: $uri', tag: 'DeepLink');
-    
-    final path = uri.path.isEmpty ? uri.host : uri.path;
-    final segments = path.split('/').where((s) => s.isNotEmpty).toList();
-    
+
+    // En URIs con scheme custom (rehabtech://exercise/1) el host actúa como
+    // el primer segmento lógico (host=exercise, pathSegments=[1]). En URIs
+    // HTTPS (https://rehabtech.app/exercise/1) el host es el dominio y todos
+    // los segmentos están en el path. Normalizamos ambos casos.
+    final segments = <String>[];
+    final isCustomScheme = uri.scheme == 'rehabtech';
+    if (isCustomScheme && uri.host.isNotEmpty) {
+      segments.add(uri.host);
+    }
+    segments.addAll(uri.pathSegments.where((s) => s.isNotEmpty));
+
     if (segments.isEmpty) {
       return '/main';
     }

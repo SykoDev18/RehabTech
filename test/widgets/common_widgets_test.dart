@@ -68,10 +68,11 @@ void main() {
     });
 
     testWidgets('factory auth debería mostrar contenido correcto', (tester) async {
+      // El retryText ("Iniciar sesión") solo se renderiza cuando hay onRetry.
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: AppErrorWidget.auth(),
+            body: AppErrorWidget.auth(onRetry: () {}),
           ),
         ),
       );
@@ -81,10 +82,11 @@ void main() {
     });
 
     testWidgets('factory permission debería mostrar contenido correcto', (tester) async {
+      // El retryText ("Configurar permisos") solo se renderiza cuando hay onRetry.
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: AppErrorWidget.permission(),
+            body: AppErrorWidget.permission(onRetry: () {}),
           ),
         ),
       );
