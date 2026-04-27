@@ -36,7 +36,12 @@ class StreakService {
   /// Day-counts that trigger a celebration. Values must be sorted ascending.
   static const List<int> milestones = [3, 7, 14, 30];
 
-  StreakRepository _repository = StreakRepositoryImpl();
+  // Lazy: instanciar StreakRepositoryImpl tocaría FirebaseFirestore.instance,
+  // lo que falla en tests sin Firebase inicializado. Esperamos al primer uso.
+  StreakRepository? _repositoryOverride;
+  StreakRepository get _repository =>
+      _repositoryOverride ??= StreakRepositoryImpl();
+
   DateTime Function() _now = DateTime.now;
 
   /// Test seam — replace the repository and clock for unit tests.
@@ -44,7 +49,7 @@ class StreakService {
     StreakRepository? repository,
     DateTime Function()? now,
   }) {
-    if (repository != null) _repository = repository;
+    if (repository != null) _repositoryOverride = repository;
     if (now != null) _now = now;
   }
 

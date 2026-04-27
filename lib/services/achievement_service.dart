@@ -34,10 +34,14 @@ class AchievementService {
   static final AchievementService _instance = AchievementService._internal();
   factory AchievementService() => _instance;
 
-  AchievementRepository _repository = AchievementRepositoryImpl();
+  // Lazy: AchievementRepositoryImpl toca FirebaseFirestore.instance, lo
+  // que falla en tests sin Firebase inicializado. Esperamos al primer uso.
+  AchievementRepository? _repositoryOverride;
+  AchievementRepository get _repository =>
+      _repositoryOverride ??= AchievementRepositoryImpl();
 
   void debugOverride({AchievementRepository? repository}) {
-    if (repository != null) _repository = repository;
+    if (repository != null) _repositoryOverride = repository;
   }
 
   Stream<Set<String>> watchUnlockedIds(String userId) =>
