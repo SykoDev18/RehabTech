@@ -4,6 +4,9 @@ import 'package:camera/camera.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import '../core/utils/logger.dart';
+import '../domain/pose_analysis/exercise_analyzer.dart' as ea;
+import '../domain/pose_analysis/exercise_feedback.dart' as ef;
+import '../domain/pose_analysis/pose_detection_quality.dart';
 
 /// Tipos de ejercicio soportados con detección de poses
 enum ExerciseType {
@@ -34,6 +37,8 @@ class PoseAnalysisResult {
   final String feedback;
   final List<String> corrections;
   final double confidence;
+  final PoseDetectionQuality quality;
+  final List<Pose> poses;
 
   PoseAnalysisResult({
     required this.isCorrectForm,
@@ -43,6 +48,8 @@ class PoseAnalysisResult {
     required this.feedback,
     this.corrections = const [],
     this.confidence = 0.0,
+    this.quality = PoseDetectionQuality.poor,
+    this.poses = const [],
   });
 }
 
@@ -50,17 +57,23 @@ class PoseAnalysisResult {
 class PoseDetectionService {
   PoseDetector? _poseDetector;
   ExerciseType _currentExercise = ExerciseType.generic;
-  
+
   // Estado de la máquina de estados para conteo
   // ignore: unused_field
   bool _wasInStartPosition = true;
   bool _wasInEndPosition = false;
   int _repCount = 0;
-  
+
   // Umbrales configurables por ejercicio
   late double _startAngleThreshold;
   late double _endAngleThreshold;
-  
+
+  // Optional new-style analyzer. When non-null, processFrame delegates to it
+  // instead of running the legacy switch.
+  ea.ExerciseAnalyzer? _analyzer;
+  DateTime? _lastSuccessfulFrameAt;
+  static const Duration _lostThreshold = Duration(seconds: 2);
+
   // Callback para notificar cambios
   Function(int repCount)? onRepCompleted;
   Function(String feedback)? onFeedback;
@@ -73,6 +86,16 @@ class PoseDetectionService {
       model: PoseDetectionModel.base,
     );
     _poseDetector = PoseDetector(options: options);
+  }
+
+  /// Registers a new-style [ExerciseAnalyzer]. When non-null, [processFrame]
+  /// delegates analysis to it. Pass null to fall back to the legacy switch.
+  void useAnalyzer(ea.ExerciseAnalyzer? analyzer) {
+    _analyzer = analyzer;
+    _repCount = 0;
+    _wasInStartPosition = true;
+    _wasInEndPosition = false;
+    _lastSuccessfulFrameAt = null;
   }
 
   /// Configura el ejercicio actual
@@ -132,20 +155,41 @@ class PoseDetectionService {
       if (inputImage == null) return null;
 
       final poses = await _poseDetector!.processImage(inputImage);
-      
+
       if (poses.isEmpty) {
+        final lost = _isLostNow();
         return PoseAnalysisResult(
           isCorrectForm: false,
           primaryAngle: 0,
           repState: RepState.initial,
           feedback: 'No se detecta pose. Asegúrate de estar visible en la cámara.',
           confidence: 0,
+          quality: lost ? PoseDetectionQuality.lost : PoseDetectionQuality.poor,
+          poses: const [],
         );
       }
 
-      // Analizar la primera pose detectada
+      _lastSuccessfulFrameAt = DateTime.now();
+
+      // Prefer new-style analyzer when registered.
+      if (_analyzer != null) {
+        return _runAnalyzer(_analyzer!, poses);
+      }
+
+      // Legacy path
       final pose = poses.first;
-      return _analyzeExercise(pose);
+      final result = _analyzeExercise(pose);
+      return PoseAnalysisResult(
+        isCorrectForm: result.isCorrectForm,
+        primaryAngle: result.primaryAngle,
+        secondaryAngle: result.secondaryAngle,
+        repState: result.repState,
+        feedback: result.feedback,
+        corrections: result.corrections,
+        confidence: result.confidence,
+        quality: PoseDetectionQualityX.fromConfidence(result.confidence),
+        poses: poses,
+      );
     } on PlatformException catch (e, st) {
       AppLogger.error(
         'PlatformException procesando frame de pose',
@@ -163,6 +207,54 @@ class PoseDetectionService {
       );
       return null;
     }
+  }
+
+  bool _isLostNow() {
+    final last = _lastSuccessfulFrameAt;
+    if (last == null) return false;
+    return DateTime.now().difference(last) > _lostThreshold;
+  }
+
+  /// Runs the registered new-style analyzer and adapts its result into
+  /// a [PoseAnalysisResult] for legacy callers. Side-effect: invokes
+  /// [onRepCompleted] / [onFeedback] when the analyzer counts a rep.
+  PoseAnalysisResult _runAnalyzer(ea.ExerciseAnalyzer analyzer, List<Pose> poses) {
+    final fb = analyzer.analyze(poses, ef.ExercisePhase.active);
+    final pose = poses.first;
+    final keyJoints = <PoseLandmark?>[
+      pose.landmarks[PoseLandmarkType.leftShoulder],
+      pose.landmarks[PoseLandmarkType.rightShoulder],
+      pose.landmarks[PoseLandmarkType.leftHip],
+      pose.landmarks[PoseLandmarkType.rightHip],
+      pose.landmarks[PoseLandmarkType.leftKnee],
+      pose.landmarks[PoseLandmarkType.rightKnee],
+    ];
+    final present = keyJoints.whereType<PoseLandmark>().toList();
+    final avg = present.isEmpty
+        ? 0.0
+        : present.map((l) => l.likelihood).reduce((a, b) => a + b) / present.length;
+
+    if (analyzer.justCountedRep) {
+      _repCount = analyzer.repCount;
+      onRepCompleted?.call(_repCount);
+      onFeedback?.call('¡Repetición $_repCount completada! 💪');
+    }
+
+    final corrections = <String>[];
+    if (fb != null && fb.level != ef.FeedbackLevel.good) {
+      corrections.add(fb.message);
+    }
+
+    return PoseAnalysisResult(
+      isCorrectForm: fb?.level == ef.FeedbackLevel.good,
+      primaryAngle: fb?.measuredAngle ?? 0,
+      repState: analyzer.justCountedRep ? RepState.completed : RepState.inProgress,
+      feedback: fb?.message ?? 'Detección activa.',
+      corrections: corrections,
+      confidence: avg,
+      quality: PoseDetectionQualityX.fromConfidence(avg),
+      poses: poses,
+    );
   }
 
   /// Convierte CameraImage a InputImage para ML Kit

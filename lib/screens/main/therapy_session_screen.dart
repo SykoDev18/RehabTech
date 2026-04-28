@@ -10,6 +10,12 @@ import 'package:rehabtech/models/exercise.dart';
 import 'package:rehabtech/screens/main/session_report_screen.dart';
 import 'package:rehabtech/services/achievement_service.dart';
 import 'package:rehabtech/services/progress_service.dart';
+import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import 'package:rehabtech/domain/pose_analysis/exercise_feedback.dart' as ef;
+import 'package:rehabtech/domain/pose_analysis/pose_detection_quality.dart';
+import 'package:rehabtech/screens/therapy/widgets/exercise_feedback_overlay.dart';
+import 'package:rehabtech/screens/therapy/widgets/skeleton_overlay.dart';
+import 'package:rehabtech/services/camera_capability_probe.dart';
 import 'package:rehabtech/services/pose_detection_service.dart';
 import 'package:rehabtech/services/analytics_service.dart';
 import 'package:rehabtech/services/streak_service.dart';
@@ -44,6 +50,10 @@ class _TherapySessionScreenState extends State<TherapySessionScreen>
   double _poseConfidence = 0;
   List<String> _formCorrections = [];
   int _frameErrorCount = 0;
+  List<Pose>? _latestPoses;
+  Size? _latestImageSize;
+  PoseDetectionQuality _quality = PoseDetectionQuality.poor;
+  ef.ExerciseFeedback? _latestFeedback;
 
   // Contadores
   int _currentRep = 0;
@@ -160,36 +170,77 @@ class _TherapySessionScreenState extends State<TherapySessionScreen>
   Future<void> _initializeCamera() async {
     try {
       _cameras = await availableCameras();
-      if (_cameras != null && _cameras!.isNotEmpty) {
-        // Usar cámara frontal si está disponible
-        _currentCamera = _cameras!.firstWhere(
-          (camera) => camera.lensDirection == CameraLensDirection.front,
-          orElse: () => _cameras!.first,
-        );
-        
-        _cameraController = CameraController(
-          _currentCamera!,
-          ResolutionPreset.medium,
-          enableAudio: false,
-          imageFormatGroup: ImageFormatGroup.nv21, // Formato compatible con ML Kit
-        );
-        
-        await _cameraController!.initialize();
-        
-        // Iniciar streaming de frames para detección de poses
-        if (_isPoseDetectionEnabled) {
-          await _cameraController!.startImageStream(_processFrame);
-        }
-        
-        if (mounted) {
-          setState(() {
-            _isCameraInitialized = true;
-          });
-        }
+      if (_cameras == null || _cameras!.isEmpty) {
+        if (!mounted) return;
+        _showCameraError('No se encontró una cámara en este dispositivo.');
+        return;
       }
+      _currentCamera = _cameras!.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+        orElse: () => _cameras!.first,
+      );
+
+      final probe = CameraCapabilityProbe();
+      final resolution = await probe.selectResolution();
+      final format = probe.selectFormat();
+      if (!mounted) return;
+
+      _cameraController = CameraController(
+        _currentCamera!,
+        resolution,
+        enableAudio: false,
+        imageFormatGroup: format,
+      );
+
+      await _cameraController!.initialize();
+      if (!mounted) {
+        await _cameraController!.dispose();
+        return;
+      }
+
+      if (_isPoseDetectionEnabled) {
+        await _cameraController!.startImageStream(_processFrame);
+      }
+
+      setState(() => _isCameraInitialized = true);
+    } on CameraException catch (e, st) {
+      AppLogger.error('CameraException al inicializar',
+          error: e, stackTrace: st, tag: 'TherapySession');
+      if (!mounted) return;
+      _showCameraError(_messageForCameraException(e));
     } catch (e, st) {
-      AppLogger.error('Error al inicializar cámara', error: e, stackTrace: st, tag: 'TherapySession');
+      AppLogger.error('Error al inicializar cámara',
+          error: e, stackTrace: st, tag: 'TherapySession');
+      if (!mounted) return;
+      _showCameraError('No se pudo iniciar la cámara. Intenta de nuevo.');
     }
+  }
+
+  String _messageForCameraException(CameraException e) {
+    switch (e.code) {
+      case 'CameraAccessDenied':
+      case 'CameraAccessDeniedWithoutPrompt':
+        return 'Necesitas dar permiso de cámara en Configuración > RehabTech';
+      case 'CameraAccessRestricted':
+        return 'El acceso a la cámara está restringido en este dispositivo.';
+      default:
+        return 'No se pudo iniciar la cámara. Intenta de nuevo.';
+    }
+  }
+
+  void _showCameraError(String message) {
+    if (!mounted) return;
+    setState(() {
+      _isCameraInitialized = false;
+      _isPoseDetectionEnabled = false;
+      _poseStatus = message;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFEF4444),
+      ),
+    );
   }
 
   Future<void> _processFrame(CameraImage image) async {
@@ -208,7 +259,19 @@ class _TherapySessionScreenState extends State<TherapySessionScreen>
           _currentAngle = result.primaryAngle;
           _poseConfidence = result.confidence;
           _formCorrections = result.corrections;
-          
+          _latestPoses = result.poses;
+          _latestImageSize = Size(image.width.toDouble(), image.height.toDouble());
+          _quality = result.quality;
+          _latestFeedback = ef.ExerciseFeedback(
+            level: result.isCorrectForm
+                ? ef.FeedbackLevel.good
+                : (result.corrections.isNotEmpty
+                    ? ef.FeedbackLevel.warning
+                    : ef.FeedbackLevel.good),
+            message: result.feedback,
+            measuredAngle: result.primaryAngle == 0 ? null : result.primaryAngle,
+          );
+
           // Actualizar rep count desde el servicio
           if (_poseService.repCount > _currentRep) {
             _currentRep = _poseService.repCount;
@@ -779,13 +842,22 @@ Reglas:
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _tipsTimer?.cancel();
-    // Solo detener el stream si la cámara está activa y transmitiendo
-    final controller = _cameraController;
-    if (controller != null && controller.value.isStreamingImages) {
-      controller.stopImageStream();
-    }
-    controller?.dispose();
+    // Order matters: stop pose pipeline -> close detector -> stop stream -> dispose camera.
+    // Doing it the other way around can leave the platform channel referencing
+    // a disposed PoseDetector while a frame is still in flight, which crashes
+    // on Android with a "use after close" error.
+    _isPoseDetectionEnabled = false;
     _poseService.dispose();
+    final controller = _cameraController;
+    if (controller != null) {
+      if (controller.value.isStreamingImages) {
+        controller.stopImageStream().catchError((Object e, StackTrace st) {
+          AppLogger.warning('Error al detener stream en dispose',
+              data: {'error': e.toString()}, tag: 'TherapySession');
+        });
+      }
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -808,6 +880,37 @@ Reglas:
               color: const Color(0xFF1F2937),
               child: const Center(
                 child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
+
+          // Skeleton overlay (above camera, below controls)
+          if (_isPoseDetectionEnabled &&
+              _latestPoses != null &&
+              _latestImageSize != null)
+            Positioned.fill(
+              child: SkeletonOverlay(
+                poses: _latestPoses,
+                imageSize: _latestImageSize!,
+                previewSize: MediaQuery.of(context).size,
+                isMirrored:
+                    _currentCamera?.lensDirection == CameraLensDirection.front,
+                measuredAngle: _currentAngle == 0 ? null : _currentAngle,
+                measuredJointName: 'rodilla',
+              ),
+            ),
+
+          // Real-time feedback overlay (rep counter + detection pill + feedback bar)
+          if (_isPoseDetectionEnabled)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ExerciseFeedbackOverlay(
+                  repsCompleted: _currentRep,
+                  targetReps: widget.exercise.reps,
+                  currentSet: 1,
+                  totalSets: widget.exercise.series,
+                  detectionQuality: _quality,
+                  feedback: _latestFeedback,
+                ),
               ),
             ),
 
