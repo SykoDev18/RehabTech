@@ -10,6 +10,8 @@ import 'package:rehabtech/screens/forgot_password_screen.dart';
 import 'package:rehabtech/core/transitions/transition_helper.dart';
 import 'package:rehabtech/screens/onboarding/onboarding_screen.dart';
 import 'package:rehabtech/screens/main/main_nav_screen.dart';
+import 'package:rehabtech/screens/main/my_appointments_screen.dart';
+import 'package:rehabtech/screens/main/my_routines_screen.dart';
 import 'package:rehabtech/screens/main/ai_chat_screen.dart';
 import 'package:rehabtech/screens/main/therapist_chat_screen.dart';
 import 'package:rehabtech/screens/main/exercise_detail_screen.dart';
@@ -282,6 +284,24 @@ class AppRouter {
             },
           ),
 
+          // Mis rutinas asignadas (paciente)
+          GoRoute(
+            path: 'my-routines',
+            name: 'myRoutines',
+            pageBuilder: (context, state) => TransitionHelper.slideFromRight(
+              child: const MyRoutinesScreen(),
+            ),
+          ),
+
+          // Mis citas (paciente, read-only)
+          GoRoute(
+            path: 'my-appointments',
+            name: 'myAppointments',
+            pageBuilder: (context, state) => TransitionHelper.slideFromRight(
+              child: const MyAppointmentsScreen(),
+            ),
+          ),
+
           // Reporte de sesión
           GoRoute(
             path: 'session-report',
@@ -434,4 +454,6 @@ extension GoRouterExtension on BuildContext {
   void goToHelpCenter() => go('/profile/help');
   void goToPrivacyPolicy() => go('/profile/privacy');
   void goToAchievements() => go('/profile/achievements');
+  void goToMyRoutines() => go('/main/my-routines');
+  void goToMyAppointments() => go('/main/my-appointments');
 }

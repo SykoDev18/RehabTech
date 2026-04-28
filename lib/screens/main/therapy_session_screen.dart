@@ -20,6 +20,7 @@ import 'package:rehabtech/services/pose_detection_service.dart';
 import 'package:rehabtech/services/analytics_service.dart';
 import 'package:rehabtech/services/streak_service.dart';
 import 'package:rehabtech/presentation/widgets/exercise/completion_celebration.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -724,6 +725,13 @@ Reglas:
     
     await progressService.saveProgress(progressData);
 
+    // Persistir en Firestore: users/{uid}/progress/{auto}. La regla en
+    // firestore.rules permite read al terapeuta asignado, asi que el
+    // historial de dolor y compliance del paciente queda disponible para
+    // su terapeuta. Fire-and-forget con timeout para no bloquear el
+    // pushReplacement al reporte aunque no haya red.
+    _persistProgressToFirestore(progressData);
+
     // Track analytics
     await AnalyticsService().logExerciseCompleted(
       exerciseId: widget.exercise.id,
@@ -752,6 +760,46 @@ Reglas:
         ),
       ),
     );
+  }
+
+  /// Persiste el progreso de la sesión (incluyendo nivel de dolor) en
+  /// `users/{uid}/progress/`. Fire-and-forget: si Firestore falla por red
+  /// la persistencia local en SharedPreferences sigue funcionando y el
+  /// usuario no ve interrupción. La regla `/users/{uid}/progress` permite
+  /// read al terapeuta asignado, por lo que este es el canal canónico
+  /// para que el terapeuta vea historial de dolor y compliance.
+  void _persistProgressToFirestore(ProgressData data) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final payload = <String, dynamic>{
+      'date': Timestamp.fromDate(data.date),
+      'exerciseId': data.exerciseId,
+      'exerciseName': data.exerciseName,
+      'completedReps': data.completedReps,
+      'totalReps': data.totalReps,
+      'durationSeconds': data.durationSeconds,
+      'painLevel': data.painLevel,
+      'completionPercentage': data.completionPercentage,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('progress')
+        .add(payload)
+        .timeout(const Duration(seconds: 8))
+        .then((_) {
+      AppLogger.info('Progreso persistido en Firestore', tag: 'TherapySession');
+    }).catchError((Object e, StackTrace st) {
+      // No interrumpe al usuario; el dato sigue en SharedPreferences.
+      AppLogger.warning(
+        'No se pudo persistir progreso en Firestore (queda local)',
+        data: {'error': e.toString()},
+        tag: 'TherapySession',
+      );
+    });
   }
 
   /// Actualiza la racha del usuario en Firestore y evalúa logros recién

@@ -2,8 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:rehabtech/models/exercise.dart';
 import 'package:rehabtech/presentation/widgets/streak/streak_widget.dart';
+import 'package:rehabtech/router/app_router.dart';
 import 'package:rehabtech/screens/main/ai_chat_screen.dart';
 import 'package:rehabtech/screens/main/exercise_detail_screen.dart';
 import 'package:rehabtech/services/progress_service.dart';
@@ -128,6 +130,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 16),
             _buildRoutineCard(),
+            const SizedBox(height: 12),
+            _buildAssignedRoutinesShortcut(),
+            const SizedBox(height: 8),
+            _buildAppointmentsShortcut(),
             const SizedBox(height: 24),
             _buildProgressCard(),
             const SizedBox(height: 24),
@@ -207,6 +213,132 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           )
         ],
+      ),
+    );
+  }
+
+  /// Atajo a la lista de citas agendadas por el terapeuta (read-only).
+  Widget _buildAppointmentsShortcut() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.goToMyAppointments(),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    LucideIcons.calendar,
+                    color: Color(0xFF10B981),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mis citas',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Próximas y pasadas',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(LucideIcons.chevronRight, color: Color(0xFF6B7280)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Atajo a la lista de rutinas asignadas por el terapeuta. Es la entrada
+  /// principal al flujo médico real (rutinas vivas en Firestore), separado
+  /// del catálogo estático de ejercicios que muestra _buildRoutineCard.
+  Widget _buildAssignedRoutinesShortcut() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.goToMyRoutines(),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    LucideIcons.dumbbell,
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mis rutinas asignadas',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Ver lo que tu terapeuta te asignó',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(LucideIcons.chevronRight, color: Color(0xFF6B7280)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
