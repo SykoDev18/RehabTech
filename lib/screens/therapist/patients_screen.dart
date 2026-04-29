@@ -31,6 +31,13 @@ class _PatientsScreenState extends State<PatientsScreen> {
         SliverToBoxAdapter(
           child: _buildHeader(),
         ),
+        // Dashboard agregado: KPIs vivos sobre la práctica del terapeuta.
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(24, 0, 24, 16),
+          sliver: SliverToBoxAdapter(
+            child: _DashboardStrip(),
+          ),
+        ),
         // Search bar
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
@@ -785,5 +792,164 @@ class _PatientsScreenState extends State<PatientsScreen> {
         );
       }
     }
+  }
+}
+
+/// Aggregate KPIs sobre la práctica del terapeuta. Cada card lee un
+/// query independiente; si alguno falla, el resto sigue funcionando.
+class _DashboardStrip extends StatelessWidget {
+  const _DashboardStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 92,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _KpiCard(
+            label: 'Pacientes',
+            color: const Color(0xFF3B82F6),
+            icon: LucideIcons.users,
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .where('therapistId', isEqualTo: userId)
+                .snapshots()
+                .map((s) => s.size),
+          ),
+          const SizedBox(width: 12),
+          _KpiCard(
+            label: 'Citas próximas',
+            color: const Color(0xFF10B981),
+            icon: LucideIcons.calendar,
+            stream: FirebaseFirestore.instance
+                .collection('appointments')
+                .where('therapistId', isEqualTo: userId)
+                .where('dateTime', isGreaterThanOrEqualTo: Timestamp.now())
+                .where('status', isEqualTo: 'scheduled')
+                .snapshots()
+                .map((s) => s.size),
+          ),
+          const SizedBox(width: 12),
+          _KpiCard(
+            label: 'Rutinas activas',
+            color: const Color(0xFFF59E0B),
+            icon: LucideIcons.dumbbell,
+            stream: FirebaseFirestore.instance
+                .collection('routines')
+                .where('therapistId', isEqualTo: userId)
+                .snapshots()
+                .map((s) => s.size),
+          ),
+          const SizedBox(width: 12),
+          _CompletedThisWeekKpi(therapistId: userId),
+        ],
+      ),
+    );
+  }
+}
+
+class _KpiCard extends StatelessWidget {
+  const _KpiCard({
+    required this.label,
+    required this.color,
+    required this.icon,
+    required this.stream,
+  });
+
+  final String label;
+  final Color color;
+  final IconData icon;
+  final Stream<int> stream;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 140,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF6B7280),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          StreamBuilder<int>(
+            stream: stream,
+            builder: (context, snap) {
+              final count = snap.data;
+              return Text(
+                snap.hasError
+                    ? '—'
+                    : (count == null ? '…' : count.toString()),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Citas completadas en los últimos 7 días por este terapeuta.
+///
+/// Se evita un `collectionGroup('progress')` que requeriría reglas
+/// adicionales; las appointments viven en una colección top-level que
+/// ya se filtra por `therapistId` y `status` con las reglas existentes.
+class _CompletedThisWeekKpi extends StatelessWidget {
+  const _CompletedThisWeekKpi({required this.therapistId});
+  final String therapistId;
+
+  @override
+  Widget build(BuildContext context) {
+    final weekAgo = DateTime.now().subtract(const Duration(days: 7));
+    return _KpiCard(
+      label: 'Completadas 7d',
+      color: const Color(0xFF8B5CF6),
+      icon: LucideIcons.activity,
+      stream: FirebaseFirestore.instance
+          .collection('appointments')
+          .where('therapistId', isEqualTo: therapistId)
+          .where('status', isEqualTo: 'completed')
+          .where('dateTime', isGreaterThanOrEqualTo: Timestamp.fromDate(weekAgo))
+          .snapshots()
+          .map((s) => s.size),
+    );
   }
 }
