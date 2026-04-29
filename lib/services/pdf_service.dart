@@ -1,10 +1,13 @@
 import 'dart:typed_data';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'package:rehabtech/core/utils/logger.dart';
 import 'package:rehabtech/services/progress_service.dart';
 
 class PdfService {
@@ -331,5 +334,73 @@ class PdfService {
   static Future<void> printPdf(String period) async {
     final pdfBytes = await generateProgressReport(period);
     await Printing.layoutPdf(onLayout: (format) async => pdfBytes);
+  }
+
+  /// Sube el PDF de progreso a Firebase Storage en
+  /// `reports/{currentUserId}/progress_{period}_{timestamp}.pdf` y devuelve
+  /// la URL de descarga firmada.
+  ///
+  /// La regla de Storage `reports/{userId}/{fileName}` solo permite write
+  /// al propio usuario, por lo que esto funciona del lado paciente; el
+  /// terapeuta exportando reportes de un paciente requeriría una regla
+  /// adicional que aún no existe.
+  ///
+  /// Devuelve null si no hay sesión iniciada o si la subida falla.
+  static Future<String?> uploadToStorage(String period) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      AppLogger.warning(
+        'No se puede subir PDF: sin sesión',
+        tag: 'PdfService',
+      );
+      return null;
+    }
+
+    try {
+      final pdfBytes = await generateProgressReport(period);
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'progress_${period.toLowerCase()}_$timestamp.pdf';
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('reports')
+          .child(user.uid)
+          .child(fileName);
+
+      final task = await ref.putData(
+        pdfBytes,
+        SettableMetadata(
+          contentType: 'application/pdf',
+          customMetadata: {
+            'period': period,
+            'generatedAt': DateTime.now().toIso8601String(),
+            'userId': user.uid,
+          },
+        ),
+      );
+
+      final url = await task.ref.getDownloadURL();
+      AppLogger.info(
+        'PDF subido a Storage',
+        data: {'period': period, 'fileName': fileName},
+        tag: 'PdfService',
+      );
+      return url;
+    } on FirebaseException catch (e) {
+      AppLogger.error(
+        'Firebase error subiendo PDF a Storage',
+        error: e,
+        data: {'code': e.code, 'message': e.message},
+        tag: 'PdfService',
+      );
+      return null;
+    } catch (e, st) {
+      AppLogger.error(
+        'Error inesperado subiendo PDF a Storage',
+        error: e,
+        stackTrace: st,
+        tag: 'PdfService',
+      );
+      return null;
+    }
   }
 }

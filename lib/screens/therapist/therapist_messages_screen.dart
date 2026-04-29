@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../widgets/common/empty_state_widget.dart';
 import 'therapist_chat_detail_screen.dart';
 
 class TherapistMessagesScreen extends StatefulWidget {
@@ -306,41 +307,14 @@ class _TherapistMessagesScreenState extends State<TherapistMessagesScreen> {
   }
 
   Widget _buildEmptyState({bool isFiltered = false}) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isFiltered ? LucideIcons.searchX : LucideIcons.messageCircle,
-              size: 64,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isFiltered
-                  ? 'No se encontraron conversaciones'
-                  : 'Sin mensajes aún',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isFiltered
-                  ? 'Intenta con otro término de búsqueda'
-                  : 'Inicia una conversación con un paciente',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
-        ),
-      ),
+    if (isFiltered) {
+      return EmptyStateWidget.noSearchResults(query: _searchQuery);
+    }
+    return const EmptyStateWidget(
+      title: 'Sin mensajes aún',
+      message: 'Inicia una conversación con un paciente',
+      icon: LucideIcons.messageCircle,
+      iconColor: Color(0xFF8B5CF6),
     );
   }
 

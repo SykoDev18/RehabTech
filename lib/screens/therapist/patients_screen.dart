@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../domain/entities/patient_entity.dart';
+import '../../widgets/common/empty_state_widget.dart';
 import 'patient_detail_screen.dart';
 
 class PatientsScreen extends StatefulWidget {
@@ -289,41 +290,14 @@ class _PatientsScreenState extends State<PatientsScreen> {
   }
 
   Widget _buildEmptyState({bool isFiltered = false}) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isFiltered ? LucideIcons.searchX : LucideIcons.users,
-              size: 64,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isFiltered
-                  ? 'No se encontraron pacientes'
-                  : 'Sin pacientes aún',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isFiltered
-                  ? 'Intenta con otro término de búsqueda'
-                  : 'Agrega tu primer paciente',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
-        ),
-      ),
+    if (isFiltered) {
+      return EmptyStateWidget.noSearchResults(query: _searchQuery);
+    }
+    return const EmptyStateWidget(
+      title: 'Sin pacientes aún',
+      message: 'Agrega tu primer paciente',
+      icon: LucideIcons.users,
+      iconColor: Color(0xFF3B82F6),
     );
   }
 

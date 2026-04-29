@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/logger.dart';
 import '../../models/exercise.dart';
+import '../../widgets/common/empty_state_widget.dart';
 
 class RoutinesScreen extends StatefulWidget {
   const RoutinesScreen({super.key});
@@ -409,30 +410,11 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.dumbbell, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Sin rutinas aún',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Crea tu primera rutina de ejercicios',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            ),
-          ],
-        ),
-      ),
+    return const EmptyStateWidget(
+      title: 'Sin rutinas aún',
+      message: 'Crea tu primera rutina de ejercicios',
+      icon: LucideIcons.dumbbell,
+      iconColor: Color(0xFFF59E0B),
     );
   }
 

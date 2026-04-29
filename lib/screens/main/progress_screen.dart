@@ -264,6 +264,41 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 Navigator.pop(context);
               },
             ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(LucideIcons.cloudUpload, color: Color(0xFF8B5CF6)),
+              ),
+              title: const Text('Guardar en la nube'),
+              subtitle: Text('Sube el reporte $_selectedPeriod a tu almacenamiento'),
+              onTap: () async {
+                Navigator.pop(context);
+                _showLoadingDialog();
+                final url = await PdfService.uploadToStorage(_selectedPeriod);
+                if (!mounted) return;
+                // ignore: use_build_context_synchronously
+                Navigator.pop(context); // close loading
+                if (!mounted) return;
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      url == null
+                          ? 'No se pudo subir el PDF. Verifica tu conexión.'
+                          : 'PDF guardado en la nube',
+                    ),
+                    backgroundColor: url == null
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFF22C55E),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 24),
           ],
         ),
