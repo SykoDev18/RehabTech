@@ -245,6 +245,56 @@ flutter test test/widgets/
 - Android: minSdk 21, targetSdk 34
 - iOS: 12.0+
 
+## ☁️ Cloud Functions (push notifications)
+
+El directorio `functions/` contiene triggers TypeScript que disparan push
+notifications via FCM cuando ocurren eventos cross-user que el cliente no
+puede notificar de forma segura (porque mandar push requiere el FCM Server
+Key, que jamás debe vivir en cliente).
+
+### Triggers
+
+- `onAppointmentCreated`: cuando se crea una cita en `appointments/`,
+  notifica al paciente con el tipo de sesión y la fecha/hora
+- `onConversationMessageCreated`: cuando se agrega un mensaje en
+  `conversations/{id}/messages/`, notifica al participante que NO envió
+  el mensaje, con el nombre del remitente y un preview de hasta 80 chars
+
+### Setup local
+
+```bash
+cd functions
+npm install        # instala firebase-admin + firebase-functions
+npm run build      # compila TS -> JS en lib/
+cd ..
+```
+
+### Despliegue
+
+```bash
+firebase deploy --only functions
+```
+
+Requiere:
+
+- Plan Blaze (Cloud Functions Gen 2 no funciona en plan Spark)
+- Node.js 20 instalado localmente
+- `firebase login` previamente ejecutado
+
+### Verificación rápida
+
+Después del deploy, crea una cita desde la app de terapeuta. El paciente
+asignado debe recibir el push (si tiene `fcmToken` en su doc de
+`users/{uid}` — la app guarda este token en el primer arranque después
+de aceptar permisos de notificación).
+
+Logs:
+
+```bash
+firebase functions:log --only onAppointmentCreated
+firebase functions:log --only onConversationMessageCreated
+```
+
 ## 🤖 CI/CD (GitHub Actions)
 
 El workflow `.github/workflows/ci.yml` corre en cada push/PR a `main`/`master`:

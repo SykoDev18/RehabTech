@@ -1,1 +1,46 @@
-{"firestore":{"rules":"firestore.rules","indexes":"firestore.indexes.json"},"storage":{"rules":"storage.rules"},"flutter":{"platforms":{"android":{"default":{"projectId":"rehabtech-88c1c","appId":"1:935447260339:android:cf38c3f2a9a0cbe8eb94c6","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"rehabtech-88c1c","configurations":{"android":"1:935447260339:android:cf38c3f2a9a0cbe8eb94c6","web":"1:935447260339:web:60419c3c1e6bd4c5eb94c6"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "nodejs20",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "rehabtech-88c1c",
+          "appId": "1:935447260339:android:cf38c3f2a9a0cbe8eb94c6",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "rehabtech-88c1c",
+          "configurations": {
+            "android": "1:935447260339:android:cf38c3f2a9a0cbe8eb94c6",
+            "web": "1:935447260339:web:60419c3c1e6bd4c5eb94c6"
+          }
+        }
+      }
+    }
+  }
+}
