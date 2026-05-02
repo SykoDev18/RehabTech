@@ -25,6 +25,9 @@ initializeApp();
 // HTTPS callable: verifica cédula profesional contra el RNP de la SEP.
 export {verifyProfessionalLicense} from "./verifyProfessionalLicense";
 
+// HTTPS callable: borra atómicamente datos del usuario en Firestore + auth.
+export {deleteAccount} from "./deleteAccount";
+
 // ─────────────────────────────────────────────────────────────────────
 // 1. Notifica al paciente cuando su terapeuta agenda una cita
 // ─────────────────────────────────────────────────────────────────────

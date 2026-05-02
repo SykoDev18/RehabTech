@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:rehabtech/services/progress_service.dart';
+import 'package:provider/provider.dart';
+import 'package:rehabtech/presentation/providers/theme_provider.dart';
 
 class HighContrastScreen extends StatefulWidget {
   const HighContrastScreen({super.key});
@@ -11,19 +12,12 @@ class HighContrastScreen extends StatefulWidget {
 
 class _HighContrastScreenState extends State<HighContrastScreen> {
   bool _highContrastEnabled = false;
-  final ProgressService _progressService = ProgressService();
-  
+
   @override
   void initState() {
     super.initState();
-    _loadSettings();
-  }
-  
-  void _loadSettings() async {
-    final saved = _progressService.getSetting('highContrast');
-    if (saved != null) {
-      setState(() => _highContrastEnabled = saved == 1.0);
-    }
+    // Hydrate from the global ThemeProvider — single source of truth.
+    _highContrastEnabled = context.read<ThemeProvider>().highContrast;
   }
 
   @override
@@ -294,10 +288,9 @@ class _HighContrastScreenState extends State<HighContrastScreen> {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: () async {
-                            await _progressService.saveSetting(
-                              'highContrast',
-                              _highContrastEnabled ? 1.0 : 0.0,
-                            );
+                            await context
+                                .read<ThemeProvider>()
+                                .setHighContrast(_highContrastEnabled);
                             if (!mounted) return;
                             // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(

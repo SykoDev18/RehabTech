@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:rehabtech/presentation/providers/theme_provider.dart';
+import 'package:rehabtech/router/app_router.dart';
 import 'package:rehabtech/services/progress_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -20,30 +21,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ProgressService _progressService = ProgressService();
   late UserProfile _profile;
   String? _patientId;
-  
+  // Resolved from users/{therapistId}.name — empty when no therapist is
+  // assigned. The patient-side `UserProfile.therapistName` SharedPreferences
+  // field is deprecated and no longer the source of truth.
+  String _therapistName = '';
+
   @override
   void initState() {
     super.initState();
     _profile = _progressService.userProfile;
-    _loadPatientId();
+    _loadUserDoc();
   }
 
-  Future<void> _loadPatientId() async {
+  Future<void> _loadUserDoc() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      if (mounted && doc.exists) {
-        setState(() {
-          _patientId = doc.data()?['patientId'];
-        });
+    if (userId == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      if (!mounted || !doc.exists) return;
+      final data = doc.data();
+      final therapistId = data?['therapistId'] as String?;
+
+      String resolvedName = '';
+      if (therapistId != null && therapistId.isNotEmpty) {
+        final therapistDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(therapistId)
+            .get();
+        if (therapistDoc.exists) {
+          final t = therapistDoc.data() ?? {};
+          resolvedName =
+              '${t['name'] ?? ''} ${t['lastName'] ?? ''}'.trim();
+        }
       }
+
+      if (!mounted) return;
+      setState(() {
+        _patientId = data?['patientId'] as String?;
+        _therapistName = resolvedName;
+      });
+    } catch (_) {
+      // Network errors here are non-fatal — the profile screen still renders
+      // with whatever the local cache has. Logging would add noise here.
     }
   }
-  
+
   void _refreshProfile() {
     setState(() {
       _profile = _progressService.userProfile;
     });
+    _loadUserDoc();
   }
 
   @override
@@ -110,8 +140,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _MenuItem(
                 icon: LucideIcons.stethoscope,
                 title: 'Mi Terapeuta',
-                subtitle: _profile.therapistName.isNotEmpty 
-                    ? _profile.therapistName 
+                subtitle: _therapistName.isNotEmpty
+                    ? _therapistName
                     : 'No asignado',
                 onTap: () => context.push('/profile/therapist'),
               ),
@@ -560,11 +590,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         label: 'Condición/Diagnóstico',
                         value: _profile.condition,
                       ),
-                    if (_profile.therapistName.isNotEmpty)
+                    if (_therapistName.isNotEmpty)
                       _buildDataItem(
                         icon: LucideIcons.stethoscope,
                         label: 'Terapeuta asignado',
-                        value: _profile.therapistName,
+                        value: _therapistName,
                       ),
                     _buildDataItem(
                       icon: LucideIcons.shield,
@@ -797,7 +827,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton(
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              if (mounted) context.go('/login');
+              if (mounted) context.goToLogin();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,

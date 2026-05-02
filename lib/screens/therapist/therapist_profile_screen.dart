@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:go_router/go_router.dart';
+import 'package:rehabtech/domain/entities/therapist_license_entity.dart';
+import 'package:rehabtech/router/app_router.dart';
+import 'package:rehabtech/widgets/license_status_badge.dart';
+import 'package:rehabtech/widgets/profile_photo_picker.dart';
 
 class TherapistProfileScreen extends StatefulWidget {
   const TherapistProfileScreen({super.key});
@@ -25,19 +28,29 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
-    // Load user data
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-    if (userDoc.exists) {
-      setState(() => _userData = userDoc.data());
-    }
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      if (!mounted) return;
+      if (userDoc.exists) {
+        setState(() => _userData = userDoc.data());
+      }
 
-    // Count patients
-    final patientsSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('therapistId', isEqualTo: userId)
-        .where('userType', isEqualTo: 'patient')
-        .get();
-    setState(() => _patientCount = patientsSnapshot.docs.length);
+      final patientsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('therapistId', isEqualTo: userId)
+          .where('userType', isEqualTo: 'patient')
+          .get();
+      if (!mounted) return;
+      setState(() => _patientCount = patientsSnapshot.docs.length);
+    } on FirebaseException {
+      // Network errors are non-fatal — the existing _userData (possibly
+      // null) keeps the UI in a stable empty state until the next reload.
+      // Logging is intentionally skipped: this method runs on every
+      // photo-upload callback and would generate noise.
+    }
   }
 
   @override
@@ -56,6 +69,8 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
               _buildProfileCard(),
               const SizedBox(height: 16),
               _buildContactCard(),
+              const SizedBox(height: 16),
+              _buildLicenseCard(),
               const SizedBox(height: 16),
               _buildStatsCard(),
               const SizedBox(height: 32),
@@ -112,7 +127,7 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
   Widget _buildProfileCard() {
     final name = '${_userData?['name'] ?? ''} ${_userData?['lastName'] ?? ''}'.trim();
     final specialty = _userData?['specialty'] ?? 'Fisioterapeuta';
-    final cedula = _userData?['cedula'] ?? '';
+    final photoUrl = (_userData?['photoUrl'] as String?) ?? '';
     final initials = _getInitials(name);
 
     return Container(
@@ -130,28 +145,26 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
       ),
       child: Column(
         children: [
-          // Avatar
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF60A5FA), Color(0xFF3B82F6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(44),
+          // Avatar — uses ProfilePhotoPicker so taps trigger camera/gallery
+          // upload. Falls back to gradient + initials when no photo is set.
+          ProfilePhotoPicker(
+            photoUrl: photoUrl,
+            size: 88,
+            borderWidth: 0,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF60A5FA), Color(0xFF3B82F6)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            child: Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 32,
-                ),
+            fallback: Text(
+              initials,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 32,
               ),
             ),
+            onPhotoUploaded: (_) => _loadUserData(),
           ),
           const SizedBox(height: 16),
           Text(
@@ -170,16 +183,6 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
               color: Colors.grey[600],
             ),
           ),
-          if (cedula.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Cédula: $cedula',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -254,6 +257,142 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Live status of the therapist's professional license. Reads from the
+  /// `users/{uid}` doc via StreamBuilder so the badge updates the moment the
+  /// `verifyProfessionalLicense` Cloud Function writes a result. Tapping the
+  /// row pushes the dedicated verification screen — the cédula number itself
+  /// is no longer hand-editable from the profile (it's owned by that flow).
+  Widget _buildLicenseCard() {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return const SizedBox.shrink();
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .snapshots(),
+      builder: (context, snap) {
+        final license = snap.data?.data() == null
+            ? const TherapistLicense()
+            : TherapistLicense.fromMap(snap.data!.data()!);
+
+        final (subtitle, ctaLabel) = switch (license.status) {
+          LicenseStatus.verified => (
+              license.licenseNumber != null
+                  ? 'Cédula ${license.licenseNumber} • Verificada SEP'
+                  : 'Verificada por la SEP',
+              'Ver detalles',
+            ),
+          LicenseStatus.pending => (
+              'Verificando con el RNP de la SEP…',
+              'Ver estado',
+            ),
+          LicenseStatus.manualReview => (
+              'En revisión manual de nuestro equipo',
+              'Ver detalles',
+            ),
+          LicenseStatus.rejected => (
+              license.verificationError ?? 'No se pudo verificar tu cédula',
+              'Reintentar',
+            ),
+          LicenseStatus.unverified => (
+              'Verifica tu cédula para mostrar el sello a tus pacientes',
+              'Verificar ahora',
+            ),
+        };
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: InkWell(
+            onTap: () => context.goToLicenseVerification(),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      LucideIcons.badgeCheck,
+                      color: const Color(0xFF3B82F6),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'Cédula Profesional',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF111827),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Compact status pill — renders nothing for
+                            // `unverified`, so we add a fallback below.
+                            if (license.status != LicenseStatus.unverified)
+                              LicenseStatusBadge(
+                                status: license.status,
+                                compact: true,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          ctaLabel,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF3B82F6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    LucideIcons.chevronRight,
+                    color: Colors.grey[400],
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -382,7 +521,6 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
   void _showEditProfileModal() {
     final nameController = TextEditingController(text: '${_userData?['name'] ?? ''} ${_userData?['lastName'] ?? ''}'.trim());
     final specialtyController = TextEditingController(text: _userData?['specialty'] ?? 'Fisioterapeuta Especializada');
-    final cedulaController = TextEditingController(text: _userData?['cedula'] ?? '');
     final emailController = TextEditingController(text: _userData?['email'] ?? FirebaseAuth.instance.currentUser?.email ?? '');
     final phoneController = TextEditingController(text: _userData?['phone'] ?? '');
     final addressController = TextEditingController(text: _userData?['address'] ?? '');
@@ -445,13 +583,42 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
                     const SizedBox(height: 16),
                     _buildFormField(label: 'Especialidad', controller: specialtyController),
                     const SizedBox(height: 16),
-                    _buildFormField(label: 'Cédula Profesional', controller: cedulaController),
-                    const SizedBox(height: 16),
                     _buildFormField(label: 'Email', controller: emailController, keyboardType: TextInputType.emailAddress),
                     const SizedBox(height: 16),
                     _buildFormField(label: 'Teléfono', controller: phoneController, keyboardType: TextInputType.phone),
                     const SizedBox(height: 16),
                     _buildFormField(label: 'Dirección', controller: addressController),
+                    const SizedBox(height: 8),
+                    // The cédula is owned by the verification flow, not this
+                    // form. Therapists tap the "Cédula Profesional" card on
+                    // the profile to open `/license-verification`.
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            LucideIcons.info,
+                            size: 16,
+                            color: Color(0xFF3B82F6),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Para verificar tu cédula profesional usa la '
+                              'sección "Cédula Profesional" en tu perfil.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 32),
                     // Submit button
                     GestureDetector(
@@ -459,7 +626,6 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
                         context,
                         name: nameController.text,
                         specialty: specialtyController.text,
-                        cedula: cedulaController.text,
                         email: emailController.text,
                         phone: phoneController.text,
                         address: addressController.text,
@@ -554,7 +720,6 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
     BuildContext context, {
     required String name,
     required String specialty,
-    required String cedula,
     required String email,
     required String phone,
     required String address,
@@ -572,7 +737,6 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
         'name': firstName,
         'lastName': lastName,
         'specialty': specialty,
-        'cedula': cedula,
         'email': email,
         'phone': phone,
         'address': address,
@@ -608,7 +772,7 @@ class _TherapistProfileScreenState extends State<TherapistProfileScreen> {
     try {
       await FirebaseAuth.instance.signOut();
       if (mounted) {
-        context.go('/login');
+        context.goToLogin();
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {

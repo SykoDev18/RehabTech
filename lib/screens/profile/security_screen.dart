@@ -1,11 +1,14 @@
 import 'dart:ui';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../core/utils/logger.dart';
 import '../../domain/validators/password_validator.dart';
 import '../../presentation/widgets/auth/password_strength_indicator.dart';
 import '../../presentation/widgets/common/app_gradient_background.dart';
+import '../../router/app_router.dart';
 
 class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key});
@@ -15,8 +18,10 @@ class SecurityScreen extends StatefulWidget {
 }
 
 class _SecurityScreenState extends State<SecurityScreen> {
-  bool _faceIdEnabled = false;
-  bool _twoFactorEnabled = false;
+  // Both flags are read-only placeholders for now — Face ID + 2FA toggles are
+  // stubbed as "Próximamente" until the underlying integrations land.
+  final bool _faceIdEnabled = false;
+  final bool _twoFactorEnabled = false;
   
   @override
   Widget build(BuildContext context) {
@@ -74,11 +79,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
                         _buildSwitchTile(
                           icon: LucideIcons.scan,
                           title: 'Face ID / Touch ID',
-                          subtitle: 'Usa biometría para iniciar sesión',
+                          subtitle: 'Próximamente — aún no disponible',
                           value: _faceIdEnabled,
-                          onChanged: (value) {
-                            setState(() => _faceIdEnabled = value);
-                          },
+                          onChanged: null,
                         ),
                       ]),
                       
@@ -105,18 +108,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
                         _buildSwitchTile(
                           icon: LucideIcons.shieldCheck,
                           title: 'Autenticación de 2 Factores',
-                          subtitle: 'Agrega una capa extra de seguridad',
+                          subtitle: 'Próximamente — aún no disponible',
                           value: _twoFactorEnabled,
-                          onChanged: (value) {
-                            setState(() => _twoFactorEnabled = value);
-                            if (value) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('2FA habilitado. Recibirás códigos por SMS.'),
-                                ),
-                              );
-                            }
-                          },
+                          onChanged: null,
                         ),
                       ]),
                       
@@ -134,9 +128,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
                         ),
                         _buildActionTile(
                           icon: LucideIcons.logOut,
-                          title: 'Cerrar Todas las Sesiones',
-                          subtitle: 'Cierra sesión en todos los dispositivos',
-                          onTap: _closeAllSessions,
+                          title: 'Cerrar Sesión en este Dispositivo',
+                          subtitle: 'Solo cierra la sesión actual',
+                          onTap: _signOutThisDevice,
                           isDestructive: true,
                         ),
                       ]),
@@ -214,35 +208,39 @@ class _SecurityScreenState extends State<SecurityScreen> {
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
   }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
+    final disabled = onChanged == null;
+    return Opacity(
+      opacity: disabled ? 0.55 : 1.0,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: const Color(0xFF3B82F6), size: 22),
         ),
-        child: Icon(icon, color: const Color(0xFF3B82F6), size: 22),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF111827),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF111827),
+          ),
         ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-      ),
-      trailing: Switch.adaptive(
-        value: value,
-        onChanged: onChanged,
-        activeTrackColor: const Color(0xFF3B82F6).withAlpha(128),
-        activeThumbColor: const Color(0xFF3B82F6),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+        ),
+        trailing: Switch.adaptive(
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: const Color(0xFF3B82F6).withAlpha(128),
+          activeThumbColor: const Color(0xFF3B82F6),
+        ),
       ),
     );
   }
@@ -516,14 +514,18 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
   
-  void _closeAllSessions() {
+  /// Local sign-out only. Real cross-device session revocation requires
+  /// `auth.revokeRefreshTokens` on the Admin SDK; until that Cloud Function
+  /// exists, surfacing "close all sessions" would mislead users — so the
+  /// label and copy match the actual scope.
+  void _signOutThisDevice() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Cerrar Todas las Sesiones'),
+        title: const Text('Cerrar Sesión'),
         content: const Text(
-          '¿Estás seguro de que deseas cerrar sesión en todos los dispositivos? Tendrás que volver a iniciar sesión.',
+          '¿Cerrar sesión en este dispositivo? Tendrás que volver a iniciar sesión.',
         ),
         actions: [
           TextButton(
@@ -534,11 +536,12 @@ class _SecurityScreenState extends State<SecurityScreen> {
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (!context.mounted) return;
+              AppRouter.clearUserTypeCache();
               Navigator.of(context).popUntil((route) => route.isFirst);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text(
-              'Cerrar Sesiones',
+              'Cerrar Sesión',
               style: TextStyle(color: Colors.white),
             ),
           ),
@@ -546,52 +549,194 @@ class _SecurityScreenState extends State<SecurityScreen> {
       ),
     );
   }
-  
+
   void _showDeleteAccountDialog() {
+    final passwordController = TextEditingController();
+    bool isDeleting = false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Eliminar Cuenta'),
-        content: const Text(
-          '¿Estás seguro de que deseas eliminar tu cuenta? Esta acción es irreversible y perderás todos tus datos.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Eliminar Cuenta'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Esta acción es irreversible. Se eliminarán permanentemente '
+                'tu perfil, sesiones, citas, conversaciones y rutinas.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Confirma con tu contraseña actual para continuar:',
+                style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                enabled: !isDeleting,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña',
+                  prefixIcon: const Icon(LucideIcons.lock),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await FirebaseAuth.instance.currentUser?.delete();
-                if (!context.mounted) return;
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              } on FirebaseAuthException catch (e) {
-                if (!context.mounted) return;
-                Navigator.pop(context);
-                final msg = e.code == 'requires-recent-login'
-                    ? 'Debes volver a iniciar sesión para eliminar tu cuenta'
-                    : 'No se pudo eliminar la cuenta: ${e.code}';
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(msg)),
-                );
-              } catch (e) {
-                if (!context.mounted) return;
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error eliminando cuenta: $e')),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text(
-              'Eliminar Cuenta',
-              style: TextStyle(color: Colors.white),
+          actions: [
+            TextButton(
+              onPressed: isDeleting ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
             ),
-          ),
-        ],
+            ElevatedButton(
+              onPressed: isDeleting
+                  ? null
+                  : () async {
+                      setDialogState(() => isDeleting = true);
+                      await _performAccountDeletion(
+                        dialogContext: dialogContext,
+                        password: passwordController.text,
+                        onError: () =>
+                            setDialogState(() => isDeleting = false),
+                      );
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: isDeleting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Eliminar Cuenta',
+                      style: TextStyle(color: Colors.white),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  /// Reauthenticates the user with their password (defence-in-depth: a stale
+  /// token shouldn't be enough to wipe a medical-data account), then invokes
+  /// the `deleteAccount` Cloud Function which atomically removes Firestore
+  /// data plus the auth record.
+  Future<void> _performAccountDeletion({
+    required BuildContext dialogContext,
+    required String password,
+    required VoidCallback onError,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final email = user?.email;
+    if (user == null || email == null) {
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        const SnackBar(
+          content: Text('No hay sesión activa.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      onError();
+      return;
+    }
+
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        const SnackBar(content: Text('Ingresa tu contraseña.')),
+      );
+      onError();
+      return;
+    }
+
+    try {
+      // Step 1 — refresh credentials so the Cloud Function call carries a
+      // fresh ID token; this also catches a wrong-password attempt before
+      // we touch any data.
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: password,
+      );
+      await user.reauthenticateWithCredential(credential);
+
+      // Step 2 — atomic deletion via Cloud Function.
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'deleteAccount',
+        options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
+      );
+      await callable.call<Map<dynamic, dynamic>>();
+
+      // Step 3 — local cleanup. The Cloud Function already deleted the auth
+      // user, but the client still holds a stale FirebaseUser; signOut clears
+      // it cleanly and goToLogin() resets the GoRouter cache.
+      await FirebaseAuth.instance.signOut();
+      if (!dialogContext.mounted) return;
+      Navigator.pop(dialogContext); // close the dialog
+      if (!mounted) return;
+      AppRouter.clearUserTypeCache();
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu cuenta ha sido eliminada.'),
+          backgroundColor: Color(0xFF22C55E),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      AppLogger.error(
+        'Reauth falló al eliminar cuenta',
+        error: e,
+        tag: 'Security',
+      );
+      if (!dialogContext.mounted) return;
+      final msg = switch (e.code) {
+        'wrong-password' || 'invalid-credential' => 'Contraseña incorrecta.',
+        'too-many-requests' =>
+          'Demasiados intentos. Espera unos minutos e intenta de nuevo.',
+        _ => 'No se pudo verificar tu identidad: ${e.code}',
+      };
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
+      onError();
+    } on FirebaseFunctionsException catch (e) {
+      AppLogger.error(
+        'Cloud Function deleteAccount falló',
+        error: e,
+        tag: 'Security',
+      );
+      if (!dialogContext.mounted) return;
+      final msg = e.code == 'data-loss'
+          ? 'Tus datos se eliminaron pero la cuenta de auth quedó. '
+              'Contacta a soporte: ${e.message ?? ''}'
+          : 'No se pudo eliminar la cuenta: ${e.message ?? e.code}';
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
+      onError();
+    } catch (e, st) {
+      AppLogger.error(
+        'Error inesperado eliminando cuenta',
+        error: e,
+        stackTrace: st,
+        tag: 'Security',
+      );
+      if (!dialogContext.mounted) return;
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        SnackBar(
+          content: Text('Error inesperado: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      onError();
+    }
   }
 }

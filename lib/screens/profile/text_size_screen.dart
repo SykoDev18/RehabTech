@@ -1,7 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:rehabtech/services/progress_service.dart';
+import 'package:provider/provider.dart';
+import 'package:rehabtech/presentation/providers/theme_provider.dart';
 
 class TextSizeScreen extends StatefulWidget {
   const TextSizeScreen({super.key});
@@ -11,22 +12,17 @@ class TextSizeScreen extends StatefulWidget {
 }
 
 class _TextSizeScreenState extends State<TextSizeScreen> {
-  double _textSize = 1.0; // 0.8 = pequeño, 1.0 = normal, 1.2 = grande, 1.4 = muy grande
-  final ProgressService _progressService = ProgressService();
-  
+  double _textSize = ThemeProvider.defaultTextScale;
+
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    // Hydrate from the global ThemeProvider — it is the single source of
+    // truth for textScale (also persisted to SharedPreferences).
+    final provider = context.read<ThemeProvider>();
+    _textSize = provider.textScale;
   }
-  
-  void _loadSettings() async {
-    final savedSize = _progressService.getSetting('textSize');
-    if (savedSize != null) {
-      setState(() => _textSize = savedSize);
-    }
-  }
-  
+
   String get _sizeLabel {
     if (_textSize <= 0.85) return 'Pequeño';
     if (_textSize <= 1.05) return 'Normal';
@@ -277,7 +273,9 @@ class _TextSizeScreenState extends State<TextSizeScreen> {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: () async {
-                            await _progressService.saveSetting('textSize', _textSize);
+                            await context
+                                .read<ThemeProvider>()
+                                .setTextScale(_textSize);
                             if (!mounted) return;
                             // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(

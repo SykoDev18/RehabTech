@@ -160,12 +160,22 @@ class MyApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             theme: ThemeProvider.lightTheme,
             darkTheme: ThemeProvider.darkTheme,
-            themeMode: themeProvider.themeMode,
+            themeMode: themeProvider.effectiveThemeMode,
             routerConfig: AppRouter.router,
             builder: (context, child) {
-              // ErrorListener debe estar dentro de MaterialApp para tener acceso a ScaffoldMessenger
-              return ErrorListener(
-                child: child ?? const SizedBox.shrink(),
+              // Layer accessibility overrides on top of the platform's
+              // MediaQuery so the user-controlled text-scale and
+              // high-contrast prefs apply app-wide. ErrorListener stays
+              // inside MaterialApp for ScaffoldMessenger access.
+              final base = MediaQuery.of(context);
+              return MediaQuery(
+                data: base.copyWith(
+                  textScaler: themeProvider.textScaler,
+                  highContrast: themeProvider.highContrast,
+                ),
+                child: ErrorListener(
+                  child: child ?? const SizedBox.shrink(),
+                ),
               );
             },
           );
