@@ -22,6 +22,9 @@ import {getMessaging} from "firebase-admin/messaging";
 
 initializeApp();
 
+// HTTPS callable: verifica cédula profesional contra el RNP de la SEP.
+export {verifyProfessionalLicense} from "./verifyProfessionalLicense";
+
 // ─────────────────────────────────────────────────────────────────────
 // 1. Notifica al paciente cuando su terapeuta agenda una cita
 // ─────────────────────────────────────────────────────────────────────

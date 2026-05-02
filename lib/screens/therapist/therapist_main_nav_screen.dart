@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../presentation/widgets/common/app_gradient_background.dart';
 import '../../presentation/widgets/common/connectivity_banner.dart';
+import '../../widgets/therapist_unverified_banner.dart';
 import 'patients_screen.dart';
 import 'routines_screen.dart';
 import 'calendar_screen.dart';
@@ -33,6 +34,7 @@ class _TherapistMainNavScreenState extends State<TherapistMainNavScreen> {
       body: Column(
         children: [
           const ConnectivityBanner(),
+          const TherapistUnverifiedBanner(),
           Expanded(
             child: AppGradientBackground(
               threeStop: true,

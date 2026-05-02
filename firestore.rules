@@ -44,20 +44,46 @@ service cloud.firestore {
     function hasRequiredFields(fields) {
       return request.resource.data.keys().hasAll(fields);
     }
+
+    // Campos del bloque de verificación de cédula que SOLO el Admin SDK
+    // (Cloud Function `verifyProfessionalLicense`) puede escribir. Si una
+    // escritura de cliente toca cualquiera de estos, la regla la rechaza.
+    function affectsLicenseAdminFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny([
+          'licenseStatus',
+          'licenseData',
+          'verifiedAt',
+          'verificationSource',
+          'verificationError',
+          'verificationAttempts',
+          'lastAttemptAt'
+        ]);
+    }
     
     // ============ COLECCIÓN DE USUARIOS ============
     match /users/{userId} {
-      // Lectura: el propio usuario O su terapeuta asignado O búsqueda por patientId
-      allow read: if isOwner(userId) 
+      // Lectura: el propio usuario O su terapeuta asignado O búsqueda por patientId.
+      // Nota: el modelo de cédula del terapeuta se almacena aquí mismo, pero los
+      // campos públicos (licenseStatus, licenseData.titulo, licenseData.nombre)
+      // los pueden leer todos los usuarios autenticados — la restricción de
+      // "solo el paciente asignado vea más" se aplica en cliente; las reglas
+      // permiten lectura del documento completo solo a propietario/terapeuta
+      // asignado, suficiente para el flujo actual.
+      allow read: if isOwner(userId)
                   || isAssignedTherapist(userId)
                   || (isTherapist() && resource.data.therapistId == request.auth.uid);
-      
+
       // Crear: solo el propio usuario (al registrarse)
       allow create: if isOwner(userId);
-      
-      // Actualizar: el propio usuario puede actualizar su perfil
-      // O un terapeuta puede vincular/desvincular al paciente (actualizar therapistId)
-      allow update: if isOwner(userId) 
+
+      // Actualizar:
+      //  - El propio usuario puede modificar su perfil EXCEPTO los campos de
+      //    verificación de cédula que solo escribe el Admin SDK (Cloud Function
+      //    `verifyProfessionalLicense`).
+      //  - Un terapeuta puede vincular/desvincular pacientes (campo `therapistId`).
+      allow update: if (isOwner(userId)
+                        && !affectsLicenseAdminFields())
                     || (isTherapist() && onlyUpdatesFields(['therapistId']));
       
       // Eliminar: solo el propio usuario

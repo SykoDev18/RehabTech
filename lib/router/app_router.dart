@@ -28,6 +28,7 @@ import 'package:rehabtech/screens/profile/help_center_screen.dart';
 import 'package:rehabtech/screens/profile/privacy_policy_screen.dart';
 import 'package:rehabtech/screens/achievements/achievements_screen.dart';
 import 'package:rehabtech/screens/therapist/therapist_main_nav_screen.dart';
+import 'package:rehabtech/screens/profile/therapist/license_verification_screen.dart';
 import 'package:rehabtech/models/exercise.dart';
 
 class AppRouter {
@@ -394,6 +395,14 @@ class AppRouter {
         name: 'therapistMain',
         builder: (context, state) => const TherapistMainNavScreen(),
       ),
+
+      GoRoute(
+        path: '/license-verification',
+        name: 'licenseVerification',
+        pageBuilder: (context, state) => TransitionHelper.slideFromRight(
+          child: const LicenseVerificationScreen(),
+        ),
+      ),
     ],
     
     // Error page
@@ -456,4 +465,5 @@ extension GoRouterExtension on BuildContext {
   void goToAchievements() => go('/profile/achievements');
   void goToMyRoutines() => go('/main/my-routines');
   void goToMyAppointments() => go('/main/my-appointments');
+  void goToLicenseVerification() => go('/license-verification');
 }
