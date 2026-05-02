@@ -14,7 +14,9 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Read(//c/Users/marco/AppData/Local/Temp/claude/c--Users-marco-RehabTech/63c492f9-08cc-4a62-980f-2c3681c88204/tasks/**)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(firebase --version)",
+      "Bash(node -e \"const t=Date.now\\(\\); require\\('./lib/index.js'\\); console.log\\('loaded in', Date.now\\(\\)-t, 'ms'\\)\")"
     ]
   }
 }
