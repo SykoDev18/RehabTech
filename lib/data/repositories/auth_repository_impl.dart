@@ -25,7 +25,13 @@ class AuthRepositoryImpl implements AuthRepository {
   /// latencia ni bloqueos al login si el plugin tarda en responder.
   void _attachUserToCrashlytics(User? user) {
     if (user == null) return;
-    FirebaseCrashlytics.instance.setUserIdentifier(user.uid).catchError((_) {});
+    try {
+      FirebaseCrashlytics.instance
+          .setUserIdentifier(user.uid)
+          .catchError((_) {});
+    } catch (_) {
+      // best-effort: no debe romper el login si Crashlytics no está listo.
+    }
   }
 
   @override
