@@ -5,7 +5,16 @@
       "Bash(flutter test *)",
       "Bash(awk ' *)",
       "Bash(flutter analyze *)",
-      "Bash(grep -E \"\\\\.dart$\")"
+      "Bash(grep -E \"\\\\.dart$\")",
+      "Bash(flutter pub *)",
+      "Bash(git stash *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm test *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Read(//c/Users/marco/AppData/Local/Temp/claude/c--Users-marco-RehabTech/63c492f9-08cc-4a62-980f-2c3681c88204/tasks/**)",
+      "Bash(npm run *)"
     ]
   }
 }

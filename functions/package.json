@@ -13,12 +13,12 @@
     "test": "jest"
   },
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "main": "lib/index.js",
   "dependencies": {
     "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.0.1",
+    "firebase-functions": "^7.2.5",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
@@ -27,6 +27,7 @@
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
     "eslint-config-google": "^0.14.0",
+    "firebase-functions-test": "^3.4.1",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
     "typescript": "^5.5.4"
