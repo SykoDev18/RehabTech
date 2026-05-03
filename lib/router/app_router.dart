@@ -29,6 +29,7 @@ import 'package:rehabtech/screens/profile/privacy_policy_screen.dart';
 import 'package:rehabtech/screens/achievements/achievements_screen.dart';
 import 'package:rehabtech/screens/therapist/therapist_main_nav_screen.dart';
 import 'package:rehabtech/screens/profile/therapist/license_verification_screen.dart';
+import 'package:rehabtech/screens/appointments/appointment_detail_screen.dart';
 import 'package:rehabtech/models/exercise.dart';
 
 class AppRouter {
@@ -294,13 +295,25 @@ class AppRouter {
             ),
           ),
 
-          // Mis citas (paciente, read-only)
+          // Mis citas (paciente)
           GoRoute(
             path: 'my-appointments',
             name: 'myAppointments',
             pageBuilder: (context, state) => TransitionHelper.slideFromRight(
               child: const MyAppointmentsScreen(),
             ),
+            routes: [
+              // Detalle de cita (paciente)
+              GoRoute(
+                path: ':id',
+                name: 'patientAppointmentDetail',
+                pageBuilder: (context, state) => TransitionHelper.slideFromRight(
+                  child: AppointmentDetailScreen(
+                    appointmentId: state.pathParameters['id']!,
+                  ),
+                ),
+              ),
+            ],
           ),
 
           // Reporte de sesión
@@ -394,6 +407,18 @@ class AppRouter {
         path: '/therapist',
         name: 'therapistMain',
         builder: (context, state) => const TherapistMainNavScreen(),
+        routes: [
+          // Detalle de cita (terapeuta) — mismo screen, role-aware.
+          GoRoute(
+            path: 'appointments/:id',
+            name: 'therapistAppointmentDetail',
+            pageBuilder: (context, state) => TransitionHelper.slideFromRight(
+              child: AppointmentDetailScreen(
+                appointmentId: state.pathParameters['id']!,
+              ),
+            ),
+          ),
+        ],
       ),
 
       GoRoute(

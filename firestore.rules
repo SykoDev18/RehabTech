@@ -153,13 +153,50 @@ service cloud.firestore {
     }
     
     // ============ COLECCIÓN DE CITAS ============
+    //
+    // Two creation flows coexist:
+    //  1. Therapist-driven (legacy): therapist writes status='scheduled'.
+    //     This path predates patient self-booking and is still used by
+    //     CalendarScreen's "Nueva Cita" modal.
+    //  2. Patient self-booking: patient writes status='pending' and the
+    //     therapist confirms or rejects. The patient may only cancel
+    //     their own appointments (never confirm or complete).
     match /appointments/{appointmentId} {
-      // El terapeuta o paciente involucrado pueden leer
-      allow read: if isAuthenticated() && 
-        (resource.data.therapistId == request.auth.uid || resource.data.patientId == request.auth.uid);
-      // Solo el terapeuta puede crear/modificar/eliminar
-      allow create: if isTherapist();
-      allow update, delete: if isAuthenticated() && resource.data.therapistId == request.auth.uid;
+      // Lectura: terapeuta o paciente involucrado.
+      allow read: if isAuthenticated() &&
+        (resource.data.therapistId == request.auth.uid ||
+         resource.data.patientId == request.auth.uid);
+
+      // Crear:
+      //  - Cualquier terapeuta autenticado (flujo legado).
+      //  - El propio paciente, siempre que el documento entrante traiga su
+      //    uid en patientId, status='pending' y los campos requeridos.
+      allow create: if isTherapist()
+                    || (isAuthenticated()
+                        && request.resource.data.patientId == request.auth.uid
+                        && request.resource.data.status == 'pending'
+                        && hasRequiredFields([
+                            'therapistId', 'patientId', 'dateTime',
+                            'status', 'createdAt', 'updatedAt'
+                          ]));
+
+      // Actualizar:
+      //  - El terapeuta dueño de la cita puede actualizar todo (confirmar,
+      //    completar, cancelar, reprogramar, agregar notas).
+      //  - El paciente dueño solo puede cancelar (status='cancelled') o
+      //    reescribir patientNotes; no puede confirmar/completar ni mover
+      //    la cita a otro terapeuta o paciente.
+      allow update: if isAuthenticated() && (
+        resource.data.therapistId == request.auth.uid
+        || (resource.data.patientId == request.auth.uid
+            && request.resource.data.therapistId == resource.data.therapistId
+            && request.resource.data.patientId == resource.data.patientId
+            && (request.resource.data.status == 'cancelled'
+                || onlyUpdatesFields(['patientNotes', 'updatedAt'])))
+      );
+
+      // No se permiten eliminaciones — usar status='cancelled'.
+      allow delete: if isAuthenticated() && resource.data.therapistId == request.auth.uid;
     }
     
     // ============ COLECCIÓN DE CONVERSACIONES ============

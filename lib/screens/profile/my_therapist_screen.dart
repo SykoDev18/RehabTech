@@ -2,9 +2,12 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:rehabtech/router/app_router.dart';
 import 'package:rehabtech/widgets/patient_therapist_badge.dart';
+import 'package:rehabtech/domain/models/appointment.dart';
+import 'package:rehabtech/screens/appointments/book_appointment_sheet.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Patient-facing "my therapist" screen.
@@ -183,7 +186,12 @@ class _TherapistInfo extends StatelessWidget {
                 photoUrl: photoUrl,
               ),
               const SizedBox(height: 24),
-              _buildActionButtons(context, phone: phone),
+              _buildActionButtons(
+                context,
+                phone: phone,
+                patientUid: patientUid,
+                therapistId: therapistId,
+              ),
               const SizedBox(height: 24),
               _NextAppointmentCard(
                 patientUid: patientUid,
@@ -312,7 +320,12 @@ class _TherapistInfo extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, {required String phone}) {
+  Widget _buildActionButtons(
+    BuildContext context, {
+    required String phone,
+    required String patientUid,
+    required String therapistId,
+  }) {
     return Column(
       children: [
         Row(
@@ -357,8 +370,11 @@ class _TherapistInfo extends StatelessWidget {
                 icon: LucideIcons.calendar,
                 label: 'Agendar Cita',
                 color: const Color(0xFFF59E0B),
-                enabled: false,
-                comingSoon: true,
+                onTap: () => BookAppointmentSheet.show(
+                  context,
+                  patientId: patientUid,
+                  therapistId: therapistId,
+                ),
               ),
             ),
           ],
@@ -540,56 +556,133 @@ class _NextAppointmentCard extends StatelessWidget {
           );
         }
 
-        final data = snap.data!.docs.first.data();
-        final ts = data['dateTime'];
-        final dt = ts is Timestamp ? ts.toDate() : null;
-        final sessionType =
-            (data['sessionType'] as String?) ?? 'Sesión';
-
-        return GestureDetector(
-          onTap: () => context.goToMyAppointments(),
-          child: _AppointmentCardShell(
+        // Skip cancelled docs that may have leaked through (the index
+        // doesn't filter by status), then pick the first remaining.
+        final docs = snap.data!.docs.where((d) {
+          return (d.data()['status'] as String?) != 'cancelled';
+        }).toList();
+        if (docs.isEmpty) {
+          return _AppointmentCardShell(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  if (dt != null) _DateBadge(dateTime: dt),
-                  if (dt != null) const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Próxima Cita',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF6B7280),
-                          ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B7280).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      LucideIcons.calendarOff,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Text(
+                      'Sin citas próximas',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        final doc = docs.first;
+        final appt = Appointment.fromMap(doc.data(), doc.id);
+        final dt = appt.dateTime;
+        final title = (appt.sessionType?.isNotEmpty ?? false)
+            ? appt.sessionType!
+            : 'Sesión';
+
+        return GestureDetector(
+          onTap: () => context.go('/main/my-appointments/${appt.id}'),
+          child: _AppointmentCardShell(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _DateBadge(dateTime: dt),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Próxima Cita',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF111827),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _formatTimeRange(dt),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF3B82F6),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          sessionType,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF111827),
-                          ),
+                      ),
+                      Icon(LucideIcons.chevronRight, color: Colors.grey[400]),
+                    ],
+                  ),
+                  if (appt.status == AppointmentStatus.pending) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppointmentStatus.pending.color
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppointmentStatus.pending.color
+                              .withValues(alpha: 0.3),
                         ),
-                        if (dt != null) ...[
-                          const SizedBox(height: 2),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            LucideIcons.clock,
+                            size: 12,
+                            color: AppointmentStatus.pending.color,
+                          ),
+                          const SizedBox(width: 6),
                           Text(
-                            _formatTimeRange(dt),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF3B82F6),
-                              fontWeight: FontWeight.w500,
+                            'Pendiente de confirmación',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppointmentStatus.pending.color,
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  Icon(LucideIcons.chevronRight, color: Colors.grey[400]),
+                  ],
                 ],
               ),
             ),
