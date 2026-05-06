@@ -369,13 +369,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       // Guardar preferencia de mensajes del terapeuta
       await _notificationService.setTherapistMessagesEnabled(_therapistMessages);
       
-      // Track analytics
+      // Track analytics — Firebase Analytics only accepts String/num as
+      // parameter values, so booleans must be stringified before being passed.
       AnalyticsService().logEvent(
         name: 'notification_settings_changed',
         parameters: {
-          'daily_reminder': _dailyReminder,
-          'reminder_time': '${_reminderTime.hour}:${_reminderTime.minute}',
-          'therapist_messages': _therapistMessages,
+          'daily_reminder': _dailyReminder.toString(),
+          'weekly_progress': _weeklyProgress.toString(),
+          'achievements': _achievements.toString(),
+          'therapist_messages': _therapistMessages.toString(),
+          'app_updates': _appUpdates.toString(),
+          'reminder_time':
+              '${_reminderTime.hour.toString().padLeft(2, '0')}:'
+              '${_reminderTime.minute.toString().padLeft(2, '0')}',
         },
       );
       

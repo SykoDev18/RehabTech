@@ -34,13 +34,37 @@ class AnalyticsService {
 
   // ==================== EVENTO GENÉRICO ====================
 
-  /// Loguear evento personalizado
+  /// Loguear evento personalizado.
+  ///
+  /// Firebase Analytics solo acepta `String` o `num` como valores de
+  /// parámetros — pasar un `bool` (o cualquier otro tipo) lanza una
+  /// `AssertionError` dentro del plugin. Sanitizamos defensivamente para
+  /// que ningún caller pueda volver a tirar la app por este motivo.
   Future<void> logEvent({
     required String name,
     Map<String, Object>? parameters,
   }) async {
-    await _analytics.logEvent(name: name, parameters: parameters);
-    AppLogger.debug('Analytics: $name', tag: 'Analytics');
+    try {
+      final sanitized = parameters?.map<String, Object>((key, value) {
+        if (value is String || value is num) return MapEntry(key, value);
+        // bool y cualquier otro tipo se serializan a String.
+        return MapEntry(key, value.toString());
+      });
+
+      await _analytics.logEvent(name: name, parameters: sanitized);
+      AppLogger.debug('Analytics: $name', tag: 'Analytics');
+    } catch (e, st) {
+      // Analytics nunca debe tirar la app.
+      AppLogger.warning(
+        'logEvent failed for "$name": $e',
+        tag: 'Analytics',
+      );
+      assert(() {
+        // En debug, reportamos el stack trace completo para depurar.
+        AppLogger.debug('logEvent stack:\n$st', tag: 'Analytics');
+        return true;
+      }());
+    }
   }
 
   // ==================== EVENTOS DE AUTENTICACIÓN ====================
