@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:rehabtech/core/utils/auth_error_messages.dart';
 import 'package:rehabtech/domain/validators/password_validator.dart';
 import 'package:rehabtech/presentation/widgets/auth/password_strength_indicator.dart';
 import 'package:rehabtech/router/app_router.dart';
@@ -32,14 +33,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
 
   Future<void> _navigateAfterRegister() async {
-    AppRouter.clearUserTypeCache();
-    if (mounted) {
-      if (_userType == 'therapist') {
-        context.go('/therapist');
-      } else {
-        context.go('/main');
-      }
-    }
+    AppRouter.clearAuthCache();
+    if (!mounted) return;
+    // The router's emailVerified gate sends every newly registered user to
+    // /verify-email until they click the link in their inbox. We send them
+    // there explicitly so they don't briefly see /main or /therapist before
+    // the redirect kicks in.
+    context.go('/verify-email');
   }
 
   /// Genera un ID único de paciente de 8 caracteres alfanuméricos
@@ -94,6 +94,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'userType': _userType,
         'patientId': patientId,
         'createdAt': FieldValue.serverTimestamp(),
+        // Per-role defaults — explicit so the user-doc shape is
+        // self-describing rather than relying on lenient parsers.
+        'onboardingCompleted': false,
+        if (_userType == 'therapist') ...{
+          'licenseStatus': 'unverified',
+          'licenseNumber': null,
+          'speciality': null,
+        },
       });
 
       // Enviar email de verificación
@@ -123,7 +131,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Error al crear cuenta')),
+          SnackBar(content: Text(mapSignUpError(e))),
         );
       }
     } finally {
@@ -222,7 +230,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildUserTypeSelector(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            _buildTherapistInfoBanner(),
+            const SizedBox(height: 12),
             _buildTextField(controller: _nameController, hintText: 'Nombre', exampleText: 'Ej. Marco Antonio'),
             const SizedBox(height: 16),
             _buildTextField(controller: _emailController, hintText: 'Correo', exampleText: 'Ej. tu@email.com'),
@@ -309,6 +319,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTherapistInfoBanner() {
+    if (_userType != 'therapist') return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFCD34D)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: Color(0xFFB45309), size: 20),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Como terapeuta, necesitarás verificar tu cédula profesional '
+              'en el Registro Nacional de Profesionistas de la SEP. '
+              'Este proceso toma menos de 1 minuto.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF92400E),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
