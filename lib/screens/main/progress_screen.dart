@@ -169,7 +169,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+      // The builder parameter is named `sheetContext` to avoid shadowing the
+      // State's `context` — needed because the onTaps below close over a
+      // `context` reference and use it after async gaps.
+      builder: (sheetContext) => Container(
         padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -206,28 +209,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
               title: const Text('Compartir PDF'),
               subtitle: Text('Enviar reporte $_selectedPeriod'),
-              onTap: () async {
-                Navigator.pop(context);
-                _showLoadingDialog();
-                try {
-                  await PdfService.sharePdf(_selectedPeriod);
-                } on PlatformException catch (e) {
-                  if (!mounted) return;
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('No se pudo compartir el PDF: ${e.code}')),
-                  );
-                } catch (e) {
-                  if (!mounted) return;
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error al compartir: $e')),
-                  );
-                }
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                Navigator.pop(context);
-              },
+              onTap: () => _runWithLoading(
+                sheetContext: sheetContext,
+                action: () => PdfService.sharePdf(_selectedPeriod),
+                errorPlatform: (code) => 'No se pudo compartir el PDF: $code',
+                errorGeneric: (e) => 'Error al compartir: $e',
+              ),
             ),
             const SizedBox(height: 8),
             ListTile(
@@ -241,28 +228,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
               title: const Text('Imprimir'),
               subtitle: const Text('Vista previa e impresión'),
-              onTap: () async {
-                Navigator.pop(context);
-                _showLoadingDialog();
-                try {
-                  await PdfService.printPdf(_selectedPeriod);
-                } on PlatformException catch (e) {
-                  if (!mounted) return;
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('No se pudo imprimir: ${e.code}')),
-                  );
-                } catch (e) {
-                  if (!mounted) return;
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error al imprimir: $e')),
-                  );
-                }
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                Navigator.pop(context);
-              },
+              onTap: () => _runWithLoading(
+                sheetContext: sheetContext,
+                action: () => PdfService.printPdf(_selectedPeriod),
+                errorPlatform: (code) => 'No se pudo imprimir: $code',
+                errorGeneric: (e) => 'Error al imprimir: $e',
+              ),
             ),
             const SizedBox(height: 8),
             ListTile(
@@ -276,28 +247,30 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
               title: const Text('Guardar en la nube'),
               subtitle: Text('Sube el reporte $_selectedPeriod a tu almacenamiento'),
-              onTap: () async {
-                Navigator.pop(context);
-                _showLoadingDialog();
-                final url = await PdfService.uploadToStorage(_selectedPeriod);
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                Navigator.pop(context); // close loading
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      url == null
-                          ? 'No se pudo subir el PDF. Verifica tu conexión.'
-                          : 'PDF guardado en la nube',
+              onTap: () => _runWithLoading(
+                sheetContext: sheetContext,
+                action: () async {
+                  final url =
+                      await PdfService.uploadToStorage(_selectedPeriod);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        url == null
+                            ? 'No se pudo subir el PDF. '
+                                'Verifica tu conexión.'
+                            : 'PDF guardado en la nube',
+                      ),
+                      backgroundColor: url == null
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFF22C55E),
                     ),
-                    backgroundColor: url == null
-                        ? const Color(0xFFEF4444)
-                        : const Color(0xFF22C55E),
-                  ),
-                );
-              },
+                  );
+                },
+                errorPlatform: (code) =>
+                    'No se pudo guardar en la nube: $code',
+                errorGeneric: (e) => 'Error al subir el PDF: $e',
+              ),
             ),
             const SizedBox(height: 24),
           ],
@@ -306,14 +279,58 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
   }
   
-  void _showLoadingDialog() {
-    showDialog(
+  /// Runs an async PDF action while showing a modal loading dialog rooted
+  /// in the State's context (not the bottom sheet's). Guarantees the dialog
+  /// is closed exactly once, regardless of success, exception, or whether
+  /// the user navigated away during the await.
+  ///
+  /// The previous implementation crashed with "Null check operator used on
+  /// a null value" because it called `Navigator.pop(context)` after an
+  /// async gap using the bottom-sheet's *detached* context: once the sheet
+  /// was popped, the StatefulElement behind that context had `state == null`
+  /// and `Navigator.of` blew up on its `state!` lookup.
+  Future<void> _runWithLoading({
+    required BuildContext sheetContext,
+    required Future<void> Function() action,
+    required String Function(String code) errorPlatform,
+    required String Function(Object error) errorGeneric,
+  }) async {
+    // Close the bottom sheet first — sheetContext is still mounted here.
+    Navigator.pop(sheetContext);
+    if (!mounted) return;
+
+    // Show the loading dialog rooted on the State's context so we can
+    // dismiss it from anywhere — `context` here resolves to the State's
+    // context (no shadowing parameter exists in this scope).
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (_) => const Center(
         child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
       ),
     );
+
+    String? errorMessage;
+    try {
+      await action();
+    } on PlatformException catch (e) {
+      errorMessage = errorPlatform(e.code);
+    } catch (e) {
+      errorMessage = errorGeneric(e);
+    } finally {
+      // Always close the loading dialog if the State is still alive AND
+      // there is something to pop (covers cases where Flutter already
+      // dismissed the dialog due to a route change).
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+    }
+
+    if (errorMessage != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
+    }
   }
 
   @override

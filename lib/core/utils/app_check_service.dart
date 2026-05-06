@@ -44,6 +44,24 @@ class AppCheckService {
         tag: 'AppCheck',
       );
 
+      // En debug mode, el SDK nativo de Firebase imprime el debug-token
+      // (UUID) UNA SOLA VEZ con tag `FirebaseAppCheck` ("Enter this debug
+      // secret into the allow list..."). Si no lo registras en
+      // Firebase Console → App Check → Apps → [Android] → Manage debug
+      // tokens, *cualquier* request a Storage/Firestore protegido con
+      // App Check devolverá 403 ("App attestation failed").
+      //
+      // Imprimimos un recordatorio visible para que sea fácil de ubicar
+      // entre el ruido de logcat al diagnosticar 403 en Storage.
+      if (kDebugMode) {
+        AppLogger.warning(
+          '⚠️  App Check debug-token: busca "FirebaseAppCheck" en logcat '
+          'y registra el UUID en Firebase Console → App Check → '
+          'Manage debug tokens. Sin esto, Storage/Firestore devolverán 403.',
+          tag: 'AppCheck',
+        );
+      }
+
       // Escuchar cambios en el token (opcional)
       _tokenChangeSub = FirebaseAppCheck.instance.onTokenChange.listen((token) {
         AppLogger.debug(

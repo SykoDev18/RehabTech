@@ -32,8 +32,26 @@ class PdfService {
         periodTitle = 'Reporte Total';
     }
 
-    final pdf = pw.Document();
-    
+    // Load a Unicode-capable font for the whole document. The default PDF
+    // built-in (Helvetica) cannot render accented characters or "•" — see
+    // logcat warnings:
+    //   "Helvetica has no Unicode support"
+    //   "Unable to find a font to draw '•' (U+2022)".
+    // Nunito covers Latin-1 supplement (Spanish accents) + the bullet glyph.
+    final baseFont = await PdfGoogleFonts.nunitoRegular();
+    final boldFont = await PdfGoogleFonts.nunitoBold();
+    final italicFont = await PdfGoogleFonts.nunitoItalic();
+    final boldItalicFont = await PdfGoogleFonts.nunitoBoldItalic();
+
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: baseFont,
+        bold: boldFont,
+        italic: italicFont,
+        boldItalic: boldItalicFont,
+      ),
+    );
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
