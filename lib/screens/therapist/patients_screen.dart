@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../domain/entities/patient_entity.dart';
+import '../../router/app_router.dart';
 import '../../widgets/common/empty_state_widget.dart';
 import 'patient_detail_screen.dart';
 
@@ -289,6 +290,19 @@ class _PatientsScreenState extends State<PatientsScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+            ),
+            // Quick "open chat with this patient" entry point. Reuses
+            // the same human-chat route the patient uses; the repo
+            // figures out the therapist/patient roles.
+            IconButton(
+              icon: const Icon(
+                LucideIcons.messageCircle,
+                color: Color(0xFF3B82F6),
+                size: 22,
+              ),
+              tooltip: 'Mensaje',
+              onPressed: () =>
+                  context.goToTherapistChat(otherUserId: patient.id),
             ),
           ],
         ),

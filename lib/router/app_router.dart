@@ -13,7 +13,7 @@ import 'package:rehabtech/screens/main/main_nav_screen.dart';
 import 'package:rehabtech/screens/main/my_appointments_screen.dart';
 import 'package:rehabtech/screens/main/my_routines_screen.dart';
 import 'package:rehabtech/screens/main/ai_chat_screen.dart';
-import 'package:rehabtech/screens/main/therapist_chat_screen.dart';
+import 'package:rehabtech/screens/chat/chat_screen.dart';
 import 'package:rehabtech/screens/main/exercise_detail_screen.dart';
 import 'package:rehabtech/screens/main/countdown_screen.dart';
 import 'package:rehabtech/screens/main/therapy_session_screen.dart';
@@ -206,13 +206,25 @@ class AppRouter {
             },
           ),
 
-          // Chat con terapeuta
+          // Chat humano con terapeuta (paciente) o paciente (terapeuta).
+          // Acepta `otherUserId` (resuelve la conversación al abrir) o
+          // `conversationId` (cuando el caller ya la conoce).
           GoRoute(
             path: 'chat/therapist',
             name: 'therapistChat',
-            pageBuilder: (context, state) => TransitionHelper.slideFromRight(
-              child: const TherapistChatScreen(),
-            ),
+            pageBuilder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              final otherUserId = extra?['otherUserId'] as String? ??
+                  extra?['therapistId'] as String? ??
+                  extra?['patientId'] as String?;
+              final conversationId = extra?['conversationId'] as String?;
+              return TransitionHelper.slideFromRight(
+                child: ChatScreen(
+                  otherUserId: otherUserId,
+                  conversationId: conversationId,
+                ),
+              );
+            },
           ),
 
           // Detalle de ejercicio (soporta deep linking por ID)
@@ -476,7 +488,18 @@ extension GoRouterExtension on BuildContext {
       go('/main/chat/nora');
     }
   }
-  void goToTherapistChat() => go('/main/chat/therapist');
+  /// Navega al chat humano. Pasa `otherUserId` cuando aún no se conoce
+  /// el conversationId (el repositorio idempotentemente lo crea), o
+  /// `conversationId` cuando ya se sabe (al abrir desde la lista).
+  void goToTherapistChat({String? otherUserId, String? conversationId}) {
+    go(
+      '/main/chat/therapist',
+      extra: <String, dynamic>{
+        if (otherUserId != null) 'otherUserId': otherUserId,
+        if (conversationId != null) 'conversationId': conversationId,
+      },
+    );
+  }
   void goToExerciseDetail(Exercise exercise) => 
       go('/main/exercise/${exercise.id}', extra: exercise);
   void goToEditProfile() => go('/profile/edit');

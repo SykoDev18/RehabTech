@@ -222,9 +222,21 @@ service cloud.firestore {
         && request.resource.data.patientId == resource.data.patientId;
 
       match /messages/{messageId} {
-        allow read, write: if isAuthenticated() &&
+        // Lectura: cualquiera de los dos participantes de la conversación.
+        allow read: if isAuthenticated() &&
           (get(/databases/$(database)/documents/conversations/$(conversationId)).data.therapistId == request.auth.uid ||
            get(/databases/$(database)/documents/conversations/$(conversationId)).data.patientId == request.auth.uid);
+        // Crear: participante autenticado, con `text` string acotado a 2000
+        // chars (defensa contra payloads abusivos / DOS vía writes grandes).
+        allow create: if isAuthenticated()
+                      && (get(/databases/$(database)/documents/conversations/$(conversationId)).data.therapistId == request.auth.uid ||
+                          get(/databases/$(database)/documents/conversations/$(conversationId)).data.patientId == request.auth.uid)
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() <= 2000;
+        // Los mensajes son inmutables — `read` se rastrea a nivel de
+        // conversación (therapistUnreadCount/patientUnreadCount) para no
+        // requerir update permissions sobre cada doc.
+        allow update, delete: if false;
       }
     }
     

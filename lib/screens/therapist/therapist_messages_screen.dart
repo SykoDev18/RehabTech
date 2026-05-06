@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../data/repositories/firestore_conversation_repository.dart';
+import '../../domain/models/conversation.dart';
+import '../../domain/repositories/conversation_repository.dart';
 import '../../widgets/common/empty_state_widget.dart';
 import 'therapist_chat_detail_screen.dart';
 
@@ -14,6 +17,7 @@ class TherapistMessagesScreen extends StatefulWidget {
 
 class _TherapistMessagesScreenState extends State<TherapistMessagesScreen> {
   final _searchController = TextEditingController();
+  final ConversationRepository _repository = FirestoreConversationRepository();
   String _searchQuery = '';
 
   @override
@@ -124,33 +128,31 @@ class _TherapistMessagesScreenState extends State<TherapistMessagesScreen> {
       );
     }
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('conversations')
-          .where('therapistId', isEqualTo: userId)
-          .orderBy('lastMessageAt', descending: true)
-          .snapshots(),
+    return StreamBuilder<List<Conversation>>(
+      stream: _repository.watchConversations(userId),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const SliverToBoxAdapter(
             child: Center(child: CircularProgressIndicator()),
           );
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        final conversations = snapshot.data ?? const <Conversation>[];
+
+        if (conversations.isEmpty) {
           return SliverToBoxAdapter(
             child: _buildEmptyState(),
           );
         }
 
-        final conversations = snapshot.data!.docs.where((doc) {
+        final filtered = conversations.where((conv) {
           if (_searchQuery.isEmpty) return true;
-          final data = doc.data() as Map<String, dynamic>;
-          final patientName = (data['patientName'] ?? '').toString().toLowerCase();
-          return patientName.contains(_searchQuery);
+          final name = (conv.patientName ?? '').toLowerCase();
+          return name.contains(_searchQuery);
         }).toList();
 
-        if (conversations.isEmpty) {
+        if (filtered.isEmpty) {
           return SliverToBoxAdapter(
             child: _buildEmptyState(isFiltered: true),
           );
@@ -159,25 +161,26 @@ class _TherapistMessagesScreenState extends State<TherapistMessagesScreen> {
         return SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, index) {
-              final doc = conversations[index];
-              final data = doc.data() as Map<String, dynamic>;
+              final conv = filtered[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: _buildConversationCard(doc.id, data),
+                child: _buildConversationCard(conv, userId),
               );
             },
-            childCount: conversations.length,
+            childCount: filtered.length,
           ),
         );
       },
     );
   }
 
-  Widget _buildConversationCard(String conversationId, Map<String, dynamic> data) {
-    final patientName = data['patientName'] ?? 'Paciente';
-    final lastMessage = data['lastMessage'] ?? '';
-    final unreadCount = data['therapistUnreadCount'] ?? 0;
-    final lastMessageAt = (data['lastMessageAt'] as Timestamp?)?.toDate();
+  Widget _buildConversationCard(Conversation conv, String myUid) {
+    final patientName = conv.patientName?.trim().isNotEmpty == true
+        ? conv.patientName!
+        : 'Paciente';
+    final lastMessage = conv.lastMessage ?? '';
+    final unreadCount = conv.unreadFor(myUid);
+    final lastMessageAt = conv.lastMessageAt;
     final initials = _getInitials(patientName);
 
     String timeStr = '';
@@ -200,9 +203,9 @@ class _TherapistMessagesScreenState extends State<TherapistMessagesScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => TherapistChatDetailScreen(
-            conversationId: conversationId,
+            conversationId: conv.id,
             patientName: patientName,
-            patientId: data['patientId'] ?? '',
+            patientId: conv.patientId,
           ),
         ),
       ),
@@ -472,31 +475,12 @@ class _TherapistMessagesScreenState extends State<TherapistMessagesScreen> {
     if (userId == null) return;
 
     try {
-      // Check if conversation already exists
-      final existing = await FirebaseFirestore.instance
-          .collection('conversations')
-          .where('therapistId', isEqualTo: userId)
-          .where('patientId', isEqualTo: patientId)
-          .limit(1)
-          .get();
-
-      String conversationId;
-      if (existing.docs.isNotEmpty) {
-        conversationId = existing.docs.first.id;
-      } else {
-        // Create new conversation
-        final doc = await FirebaseFirestore.instance.collection('conversations').add({
-          'therapistId': userId,
-          'patientId': patientId,
-          'patientName': patientName,
-          'lastMessage': '',
-          'lastMessageAt': FieldValue.serverTimestamp(),
-          'therapistUnreadCount': 0,
-          'patientUnreadCount': 0,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        conversationId = doc.id;
-      }
+      // Idempotent: returns existing conversation if one already exists
+      // for this therapist↔patient pair, otherwise creates one.
+      final conv = await _repository.getOrCreateConversation(
+        userId,
+        patientId,
+      );
 
       if (mounted) {
         Navigator.pop(context); // Close modal
@@ -504,7 +488,7 @@ class _TherapistMessagesScreenState extends State<TherapistMessagesScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => TherapistChatDetailScreen(
-              conversationId: conversationId,
+              conversationId: conv.id,
               patientName: patientName,
               patientId: patientId,
             ),

@@ -1,8 +1,10 @@
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../presentation/widgets/common/app_gradient_background.dart';
 import '../../presentation/widgets/common/connectivity_banner.dart';
+import '../../services/chat_badge_service.dart';
 import '../../widgets/therapist_unverified_banner.dart';
 import 'patients_screen.dart';
 import 'routines_screen.dart';
@@ -19,6 +21,7 @@ class TherapistMainNavScreen extends StatefulWidget {
 
 class _TherapistMainNavScreenState extends State<TherapistMainNavScreen> {
   int _currentIndex = 0;
+  final ChatBadgeService _badgeService = ChatBadgeService();
 
   final List<Widget> _screens = const [
     PatientsScreen(),
@@ -86,7 +89,12 @@ class _TherapistMainNavScreenState extends State<TherapistMainNavScreen> {
                   _buildNavItem(0, LucideIcons.users, 'Pacientes'),
                   _buildNavItem(1, LucideIcons.dumbbell, 'Rutinas'),
                   _buildNavItem(2, LucideIcons.calendar, 'Calendario'),
-                  _buildNavItem(3, LucideIcons.messageCircle, 'Mensajes'),
+                  _buildNavItem(
+                    3,
+                    LucideIcons.messageCircle,
+                    'Mensajes',
+                    badgeStream: _badgeUidStream(),
+                  ),
                   _buildNavItem(4, LucideIcons.user, 'Perfil'),
                 ],
               ),
@@ -97,8 +105,55 @@ class _TherapistMainNavScreenState extends State<TherapistMainNavScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildNavItem(
+    int index,
+    IconData icon,
+    String label, {
+    Stream<int>? badgeStream,
+  }) {
     final isSelected = _currentIndex == index;
+    final color =
+        isSelected ? const Color(0xFF3B82F6) : const Color(0xFF9CA3AF);
+
+    Widget iconWidget = Icon(icon, color: color, size: 22);
+    if (badgeStream != null) {
+      iconWidget = StreamBuilder<int>(
+        stream: badgeStream,
+        builder: (context, snap) {
+          final count = snap.data ?? 0;
+          if (count <= 0) return iconWidget;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(icon, color: color, size: 22),
+              Positioned(
+                right: -6,
+                top: -4,
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 16),
+                  height: 16,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    count > 99 ? '99+' : '$count',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
 
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
@@ -109,18 +164,15 @@ class _TherapistMainNavScreenState extends State<TherapistMainNavScreen> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFF9CA3AF),
-              size: 22,
-            ),
+            iconWidget,
             const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFF9CA3AF),
+                fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: color,
               ),
             ),
             if (isSelected)
@@ -137,5 +189,13 @@ class _TherapistMainNavScreenState extends State<TherapistMainNavScreen> {
         ),
       ),
     );
+  }
+
+  /// Returns the unread-count stream for the current user, or an empty
+  /// stream if signed out (the badge widget hides itself on count 0).
+  Stream<int> _badgeUidStream() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const Stream<int>.empty();
+    return _badgeService.watchTotalUnread(uid);
   }
 }

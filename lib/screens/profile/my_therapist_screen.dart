@@ -347,7 +347,8 @@ class _TherapistInfo extends StatelessWidget {
                 icon: LucideIcons.messageCircle,
                 label: 'Mensaje',
                 color: const Color(0xFF3B82F6),
-                onTap: () => context.goToTherapistChat(),
+                onTap: () =>
+                    context.goToTherapistChat(otherUserId: therapistId),
               ),
             ),
           ],

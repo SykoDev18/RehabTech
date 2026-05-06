@@ -1,8 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../data/repositories/firestore_conversation_repository.dart';
+import '../../domain/models/chat_message.dart';
+import '../../domain/repositories/conversation_repository.dart';
 
 class TherapistChatDetailScreen extends StatefulWidget {
   final String conversationId;
@@ -23,11 +26,13 @@ class TherapistChatDetailScreen extends StatefulWidget {
 class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  final ConversationRepository _repository = FirestoreConversationRepository();
+  bool _isSending = false;
 
   @override
   void initState() {
     super.initState();
-    _markAsRead();
+    _markAsReadOnOpen();
   }
 
   @override
@@ -37,11 +42,17 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _markAsRead() async {
-    await FirebaseFirestore.instance
-        .collection('conversations')
-        .doc(widget.conversationId)
-        .update({'therapistUnreadCount': 0});
+  Future<void> _markAsReadOnOpen() async {
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) return;
+    try {
+      await _repository.markAsRead(
+        conversationId: widget.conversationId,
+        uid: myUid,
+      );
+    } catch (_) {
+      // Non-fatal — badge stays stale until next open.
+    }
   }
 
   @override
@@ -172,19 +183,15 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
   }
 
   Widget _buildMessagesList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('conversations')
-          .doc(widget.conversationId)
-          .collection('messages')
-          .orderBy('timestamp', descending: false)
-          .snapshots(),
+    return StreamBuilder<List<ChatMessage>>(
+      stream: _repository.watchMessages(widget.conversationId),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final messages = snapshot.data!.docs;
+        final messages = snapshot.data ?? const <ChatMessage>[];
 
         if (messages.isEmpty) {
           return Center(
@@ -196,6 +203,7 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
         }
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
           if (_scrollController.hasClients) {
             _scrollController.animateTo(
               _scrollController.position.maxScrollExtent,
@@ -205,30 +213,25 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
           }
         });
 
+        final myUid = FirebaseAuth.instance.currentUser?.uid;
         return ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           itemCount: messages.length,
           itemBuilder: (context, index) {
-            final data = messages[index].data() as Map<String, dynamic>;
-            return _buildMessageBubble(data);
+            final msg = messages[index];
+            final isMe = myUid != null && msg.isSentBy(myUid);
+            return _buildMessageBubble(msg, isMe);
           },
         );
       },
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> message) {
-    final text = message['text'] ?? '';
-    final senderId = message['senderId'] ?? '';
-    final timestamp = (message['timestamp'] as Timestamp?)?.toDate();
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    final isMe = senderId == userId;
-
-    String timeStr = '';
-    if (timestamp != null) {
-      timeStr = '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-    }
+  Widget _buildMessageBubble(ChatMessage message, bool isMe) {
+    final timestamp = message.timestamp;
+    final timeStr =
+        '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -258,7 +261,7 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              text,
+              message.text,
               style: TextStyle(
                 fontSize: 15,
                 color: isMe ? Colors.white : const Color(0xFF111827),
@@ -313,7 +316,7 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
           ),
           const SizedBox(width: 12),
           GestureDetector(
-            onTap: _sendMessage,
+            onTap: _isSending ? null : _sendMessage,
             child: Container(
               width: 44,
               height: 44,
@@ -323,7 +326,15 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
                 ),
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: const Icon(LucideIcons.send, color: Colors.white, size: 20),
+              child: _isSending
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(LucideIcons.send, color: Colors.white, size: 20),
             ),
           ),
         ],
@@ -341,41 +352,30 @@ class _TherapistChatDetailScreenState extends State<TherapistChatDetailScreen> {
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isSending) return;
 
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
     _messageController.clear();
+    setState(() => _isSending = true);
 
     try {
-      // Add message
-      await FirebaseFirestore.instance
-          .collection('conversations')
-          .doc(widget.conversationId)
-          .collection('messages')
-          .add({
-        'text': text,
-        'senderId': userId,
-        'senderType': 'therapist',
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-
-      // Update conversation
-      await FirebaseFirestore.instance
-          .collection('conversations')
-          .doc(widget.conversationId)
-          .update({
-        'lastMessage': text.length > 50 ? '${text.substring(0, 50)}...' : text,
-        'lastMessageAt': FieldValue.serverTimestamp(),
-        'patientUnreadCount': FieldValue.increment(1),
-      });
+      await _repository.sendMessage(
+        conversationId: widget.conversationId,
+        senderId: userId,
+        text: text,
+      );
     } catch (e) {
       if (mounted) {
+        // Restore text so the user doesn't lose their draft.
+        _messageController.text = text;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al enviar mensaje: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
     }
   }
 }
