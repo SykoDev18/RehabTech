@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:rehabtech/router/app_router.dart';
 import 'package:rehabtech/widgets/patient_therapist_badge.dart';
+import 'package:rehabtech/core/utils/url_launcher_helper.dart';
 import 'package:rehabtech/domain/models/appointment.dart';
 import 'package:rehabtech/screens/appointments/book_appointment_sheet.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -816,21 +817,11 @@ class _NoTherapistState extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
-                    onPressed: () async {
-                      final mailUri = Uri.parse(
-                        'mailto:rehabtechnoreply@gmail.com'
-                        '?subject=Necesito%20un%20terapeuta',
-                      );
-                      if (await canLaunchUrl(mailUri)) {
-                        await launchUrl(mailUri);
-                      } else if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('No se pudo abrir el correo'),
-                          ),
-                        );
-                      }
-                    },
+                    onPressed: () => UrlLauncherHelper.launchEmail(
+                      context: context,
+                      to: 'rehabtechnoreply@gmail.com',
+                      subject: 'Necesito un terapeuta',
+                    ),
                     icon: const Icon(LucideIcons.mail, color: Colors.white),
                     label: const Text(
                       'Contactar Soporte',

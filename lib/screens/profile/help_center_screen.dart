@@ -2,11 +2,11 @@ import 'dart:io' show SocketException;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:rehabtech/core/constants/api_constants.dart';
 import 'package:rehabtech/core/utils/logger.dart';
+import 'package:rehabtech/core/utils/url_launcher_helper.dart';
 
 class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key});
@@ -391,17 +391,13 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     );
   }
   
-  void _launchEmail() async {
-    final uri = Uri.parse('mailto:rehabtechnoreply@gmail.com?subject=Solicitud%20de%20Ayuda%20-%20RehabTech&body=Hola,%20necesito%20ayuda%20con:');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se puede abrir el correo')),
-        );
-      }
-    }
+  Future<void> _launchEmail() async {
+    await UrlLauncherHelper.launchEmail(
+      context: context,
+      to: 'rehabtechnoreply@gmail.com',
+      subject: 'Solicitud de Ayuda - RehabTech',
+      body: 'Hola, necesito ayuda con: ',
+    );
   }
 
   void _openSupportChat(BuildContext context) {

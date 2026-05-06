@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:rehabtech/core/utils/url_launcher_helper.dart';
 import 'package:rehabtech/domain/entities/therapist_license_entity.dart';
 import 'package:rehabtech/services/license_verification_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 const _maxAttemptsPerDay = 3;
 const _specialityOptions = <String>[
@@ -77,10 +77,11 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
   }
 
   Future<void> _openSepSite() async {
-    final uri = Uri.parse('https://cedulaprofesional.sep.gob.mx');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    await UrlLauncherHelper.launchLink(
+      context: context,
+      url: 'https://cedulaprofesional.sep.gob.mx',
+      label: 'Cédula Profesional SEP',
+    );
   }
 
   @override

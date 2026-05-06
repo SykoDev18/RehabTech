@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:rehabtech/core/utils/url_launcher_helper.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
   static const String _termsUrl = 'https://drive.google.com/file/d/1pluhJYI2OoKxA4U8mh828U7hG3-O0NVx/view?usp=sharing';
   static const String _privacyUrl = 'https://drive.google.com/file/d/1he2yl9Hap6-dhgsS7tqUIj8Vukp_-4hf/view?usp=sharing';
-
-  Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
+  static const String _supportEmail = 'rehabtechnoreply@gmail.com';
 
   @override
   Widget build(BuildContext context) {
@@ -71,17 +65,25 @@ class PrivacyPolicyScreen extends StatelessWidget {
                         icon: LucideIcons.fileText,
                         title: 'Términos y Condiciones',
                         description: 'Lee nuestros términos de uso del servicio',
-                        onTap: () => _openUrl(_termsUrl),
+                        onTap: () => UrlLauncherHelper.launchLink(
+                          context: context,
+                          url: _termsUrl,
+                          label: 'Términos y Condiciones',
+                        ),
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Política de Privacidad
                       _buildDocumentCard(
                         icon: LucideIcons.shield,
                         title: 'Política de Privacidad',
                         description: 'Conoce cómo protegemos tus datos personales',
-                        onTap: () => _openUrl(_privacyUrl),
+                        onTap: () => UrlLauncherHelper.launchLink(
+                          context: context,
+                          url: _privacyUrl,
+                          label: 'Política de Privacidad',
+                        ),
                       ),
                       
                       const SizedBox(height: 32),
@@ -136,9 +138,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       GestureDetector(
-                        onTap: () => _openUrl('mailto:rehabtechnoreply@gmail.com'),
+                        onTap: () => UrlLauncherHelper.launchEmail(
+                          context: context,
+                          to: _supportEmail,
+                        ),
                         child: const Text(
-                          'rehabtechnoreply@gmail.com',
+                          _supportEmail,
                           style: TextStyle(
                             color: Color(0xFF3B82F6),
                             fontSize: 14,

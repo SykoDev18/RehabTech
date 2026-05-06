@@ -6,8 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:rehabtech/core/utils/auth_error_messages.dart';
+import 'package:rehabtech/core/utils/url_launcher_helper.dart';
 import 'package:rehabtech/domain/validators/password_validator.dart';
 import 'package:rehabtech/presentation/widgets/auth/password_strength_indicator.dart';
 import 'package:rehabtech/router/app_router.dart';
@@ -410,17 +410,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _openTermsAndConditions() async {
-    final uri = Uri.parse('https://drive.google.com/file/d/1pluhJYI2OoKxA4U8mh828U7hG3-O0NVx/view?usp=sharing');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    await UrlLauncherHelper.launchLink(
+      context: context,
+      url: 'https://drive.google.com/file/d/1pluhJYI2OoKxA4U8mh828U7hG3-O0NVx/view?usp=sharing',
+      label: 'Términos y Condiciones',
+    );
   }
 
   Future<void> _openPrivacyPolicy() async {
-    final uri = Uri.parse('https://drive.google.com/file/d/1he2yl9Hap6-dhgsS7tqUIj8Vukp_-4hf/view?usp=sharing');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    await UrlLauncherHelper.launchLink(
+      context: context,
+      url: 'https://drive.google.com/file/d/1he2yl9Hap6-dhgsS7tqUIj8Vukp_-4hf/view?usp=sharing',
+      label: 'Política de Privacidad',
+    );
   }
 
   Widget _buildGradientButton(String text, VoidCallback? onPressed) {
