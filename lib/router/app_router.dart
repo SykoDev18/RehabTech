@@ -90,6 +90,27 @@ class AppRouter {
   // Limpiar cache al cerrar sesión
   static void clearUserTypeCache() {
     _cachedUserType = null;
+    _cachedUserOnboardingCompleted = null;
+  }
+
+  /// Alias for [clearUserTypeCache] used by new sign-out paths. Both names
+  /// clear the same fields — this exists so callers reading the new code
+  /// don't have to know the historical name.
+  static void clearAuthCache() => clearUserTypeCache();
+
+  // ─────────── Per-user onboarding cache ───────────
+  // Populated by [getUserOnboardingCompleted] (added in Task 7) and
+  // bumped to true via [markUserOnboardingCompleted] when the role-specific
+  // onboarding screen finishes. Distinct from [_cachedOnboardingDone] which
+  // is the app-intro carousel flag.
+  // ignore: unused_field
+  static bool? _cachedUserOnboardingCompleted;
+
+  /// Call after finishing the per-role onboarding screen so the next
+  /// redirect doesn't bounce the user back to it before Firestore finishes
+  /// propagating the write.
+  static void markUserOnboardingCompleted() {
+    _cachedUserOnboardingCompleted = true;
   }
 
   /// Lee (y cachea) el flag de onboarding desde SharedPreferences.
