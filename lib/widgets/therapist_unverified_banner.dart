@@ -26,7 +26,13 @@ class TherapistUnverifiedBanner extends StatelessWidget {
         final isTherapist = (data['userType'] as String?) == 'therapist';
         if (!isTherapist) return const SizedBox.shrink();
         final license = TherapistLicense.fromMap(data);
-        if (license.status != LicenseStatus.unverified) {
+        // Also surface the prompt for `rejected` therapists — without this
+        // they get stranded with no on-screen nudge outside the license
+        // screen itself. `pending`, `manual_review`, and `verified` retain
+        // their own UIs, so we keep them out of here.
+        final status = license.status;
+        if (status != LicenseStatus.unverified &&
+            status != LicenseStatus.rejected) {
           return const SizedBox.shrink();
         }
         return _Banner(
