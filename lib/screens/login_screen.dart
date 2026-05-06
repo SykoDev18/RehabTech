@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rehabtech/core/utils/auth_error_messages.dart';
 import 'package:rehabtech/router/app_router.dart';
 import 'package:rehabtech/services/analytics_service.dart';
 import 'package:rehabtech/services/notification_service.dart';
@@ -24,20 +25,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
-  Future<void> _navigateAfterLogin() async {
-    // Obtener el tipo de usuario desde Firestore
-    final userType = await AppRouter.getUserType();
-    if (mounted) {
-      if (userType == 'therapist') {
-        context.go('/therapist');
-      } else {
-        context.go('/main');
-      }
-    }
-  }
-
   Future<void> _signIn() async {
-    if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor completa todos los campos')),
       );
@@ -50,25 +40,33 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      
+
+      // Refresh emailVerified — without this the local user is stale on the
+      // first session after a verification click happens in another app.
+      await _auth.currentUser?.reload();
+
       // Track login event
       await AnalyticsService().logLogin(method: 'email');
       await AnalyticsService().setUserId(_auth.currentUser?.uid);
       await AnalyticsService().setUserType(_userType);
-      
+
       // Subscribe to notifications topic
       await NotificationService().subscribeToTopic(_userType);
-      
-      AppRouter.clearUserTypeCache(); // Limpiar cache para obtener tipo actualizado
-      await _navigateAfterLogin();
+
+      // Clear the cache so the redirect re-reads the user doc.
+      AppRouter.clearAuthCache();
+
+      // Let the global redirect resolve where the user goes — it knows about
+      // emailVerified, role, and onboarding state. Manual routing here is
+      // what created the original gap.
+      if (mounted) context.go('/');
     } on FirebaseAuthException catch (e) {
       if (mounted) {
-        String message = _getErrorMessage(e.code);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
+          SnackBar(content: Text(mapSignInError(e))),
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error al iniciar sesión')),
@@ -125,21 +123,22 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
       
-      AppRouter.clearUserTypeCache();
-      
+      AppRouter.clearAuthCache();
+
       // Track login event
       await AnalyticsService().logLogin(method: 'google');
       await AnalyticsService().setUserId(_auth.currentUser?.uid);
       await AnalyticsService().setUserType(_userType);
-      
+
       // Subscribe to notifications topic
       await NotificationService().subscribeToTopic(_userType);
-      
-      await _navigateAfterLogin();
+
+      // Let the global redirect resolve where the user goes.
+      if (mounted) context.go('/');
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Error al iniciar con Google')),
+          SnackBar(content: Text(mapSignInError(e))),
         );
       }
     } catch (e) {
@@ -150,23 +149,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  String _getErrorMessage(String code) {
-    switch (code) {
-      case 'user-not-found':
-        return 'No existe una cuenta con este correo';
-      case 'wrong-password':
-        return 'Contraseña incorrecta';
-      case 'invalid-email':
-        return 'El correo electrónico no es válido';
-      case 'user-disabled':
-        return 'Esta cuenta ha sido deshabilitada';
-      case 'invalid-credential':
-        return 'Credenciales inválidas. Verifica tu correo y contraseña';
-      default:
-        return 'Error al iniciar sesión. Intenta de nuevo';
     }
   }
 
