@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
@@ -64,9 +65,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Buenos días';
-    if (hour < 18) return 'Buenas tardes';
-    return 'Buenas noches';
+    return switch (hour) {
+      >= 0 && < 12 => 'Buenos días',
+      >= 12 && < 18 => 'Buenas tardes',
+      _ => 'Buenas noches',
+    };
   }
 
   String _getFormattedDate() {
@@ -100,6 +103,16 @@ class _HomeScreenState extends State<HomeScreen> {
     };
   }
 
+  /// Pulls the first name from the FirebaseAuth profile (Priority 2: zero new
+  /// network calls). For email/password registrations `displayName` may be
+  /// null — callers must treat null/empty as "show generic Hola greeting".
+  String? _firstNameOrNull() {
+    final raw = FirebaseAuth.instance.currentUser?.displayName?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    final first = raw.split(' ').first;
+    return first.isEmpty ? null : first;
+  }
+
   // TODO(optimization): build() supera 770 líneas. Extraer sub-widgets:
   //   _HomeHeader (saludo + avatar),
   //   _ActiveRoutineCard (rutina del día con progreso),
@@ -108,9 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // Mejora la lectura y reduce coste de rebuilds parciales.
   @override
   Widget build(BuildContext context) {
-    final userName = _progressService.userProfile.name.isNotEmpty
-        ? _progressService.userProfile.name
-        : 'Usuario';
+    final firstName = _firstNameOrNull();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -119,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 40.0),
         child: Column(
           children: [
-            _buildHeader(userName),
+            _buildHeader(firstName),
             const SizedBox(height: 16),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 8.0),
@@ -145,7 +156,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader(String userName) {
+  Widget _buildHeader(String? firstName) {
+    // When we don't have a real name (loading state or unset displayName)
+    // we show a neutral "Hola 👋" — never the literal word "usuario", "null",
+    // or an empty string.
+    final greetingText = (firstName == null)
+        ? 'Hola 👋'
+        : '${_getGreeting()}, $firstName 👋';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: Row(
@@ -156,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_getGreeting()}, $userName',
+                  greetingText,
                   style: const TextStyle(
                     color: Color(0xFF111827),
                     fontSize: 24,

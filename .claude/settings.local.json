@@ -16,7 +16,16 @@
       "Read(//c/Users/marco/AppData/Local/Temp/claude/c--Users-marco-RehabTech/63c492f9-08cc-4a62-980f-2c3681c88204/tasks/**)",
       "Bash(npm run *)",
       "Bash(firebase --version)",
-      "Bash(node -e \"const t=Date.now\\(\\); require\\('./lib/index.js'\\); console.log\\('loaded in', Date.now\\(\\)-t, 'ms'\\)\")"
+      "Bash(node -e \"const t=Date.now\\(\\); require\\('./lib/index.js'\\); console.log\\('loaded in', Date.now\\(\\)-t, 'ms'\\)\")",
+      "Bash(git commit -m 'feat\\(auth\\): add Spanish error-message mapper for sign-in/sign-up/resend *)",
+      "Bash(git commit -m 'feat\\(router\\): add pure computeRedirect decision function with unit tests *)",
+      "Bash(git commit -m 'feat\\(auth\\): add VerifyEmailScreen with cooldown timer and injectable controller *)",
+      "Bash(git commit -m 'feat\\(onboarding\\): add four-step TherapistOnboardingScreen with profile + license CTA *)",
+      "Bash(git commit -m 'feat\\(onboarding\\): add four-step PatientOnboardingScreen with optional demographics *)",
+      "Bash(git commit -m 'fix\\(banner\\): show TherapistUnverifiedBanner for rejected status as well *)",
+      "Bash(git commit -m 'feat\\(router\\): wire emailVerified gate, per-role onboarding gate, and new routes *)",
+      "Bash(git commit -m 'feat\\(register\\): route to /verify-email, add therapist info banner, write licenseStatus default *)",
+      "Bash(git commit -m 'feat\\(login\\): reload user post-auth, delegate routing to GoRouter redirect, share error mapper *)"
     ]
   }
 }
