@@ -31,100 +31,130 @@ import 'package:rehabtech/screens/therapist/therapist_main_nav_screen.dart';
 import 'package:rehabtech/screens/profile/therapist/license_verification_screen.dart';
 import 'package:rehabtech/screens/appointments/appointment_detail_screen.dart';
 import 'package:rehabtech/models/exercise.dart';
+import 'package:rehabtech/router/redirect_logic.dart';
+import 'package:rehabtech/screens/auth/verify_email_screen.dart';
+import 'package:rehabtech/screens/onboarding/therapist_onboarding_screen.dart';
+import 'package:rehabtech/screens/onboarding/patient_onboarding_screen.dart';
+
+class _UserState {
+  final String userType;
+  final bool? onboardingCompleted;
+  const _UserState(this.userType, this.onboardingCompleted);
+}
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-  // Variable para cachear el tipo de usuario
-  static String? _cachedUserType;
-
-  // Cache del flag de onboarding para evitar leer SharedPreferences en
-  // cada redirect. Se invalida via [markOnboardingCompleted].
-  static bool? _cachedOnboardingDone;
-
-  // Función para obtener el tipo de usuario.
+  // ─────────────────── User-doc cache ───────────────────
   //
-  // CRÍTICO: este método se invoca desde el redirect de GoRouter, que
-  // bloquea la navegación hasta que resuelva. Si Firestore queda esperando
-  // red en un dispositivo offline, la UI se congela. Por eso:
-  //  1) Intentamos primero el cache local (Source.cache) que retorna al
-  //     instante si el documento ya fue descargado alguna vez.
-  //  2) Si no hay cache, vamos al servidor con timeout corto.
-  //  3) Si todo falla, asumimos 'patient' para no bloquear.
+  // The redirect callback runs on every navigation, including push() within
+  // a screen. We cache `userType` and `onboardingCompleted` together since
+  // they come from the same Firestore document — one lookup, two values.
+  //
+  // Offline behaviour:
+  //   1. Try Source.cache (returns instantly if the doc was ever loaded).
+  //   2. Otherwise hit Source.server with a 6s timeout.
+  //   3. If both fail, fall back to {userType: 'patient', onboardingCompleted: null}
+  //      so signed-in users on cold-starts see *something* instead of getting
+  //      bounced through the redirect logic indefinitely. `null` for the
+  //      onboarding flag lets [computeRedirect] decline to gate.
+
+  static String? _cachedUserType;
+  static bool? _cachedUserOnboardingCompleted;
+
+  // App-intro carousel flag (SharedPreferences). Independent of the
+  // per-user onboarding flag.
+  static bool? _cachedAppIntroDone;
+
+  /// Returns `'patient' | 'therapist' | null`. `null` only when the user is
+  /// unauthenticated.
   static Future<String?> getUserType() async {
+    final state = await _loadUserState();
+    return state?.userType;
+  }
+
+  /// Returns whether the per-role onboarding has been completed for the
+  /// current user, or `null` if the user doc hasn't been loaded yet
+  /// (offline cold-start). Callers must treat `null` as "do not gate".
+  static Future<bool?> getUserOnboardingCompleted() async {
+    final state = await _loadUserState();
+    return state?.onboardingCompleted;
+  }
+
+  static Future<_UserState?> _loadUserState() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
 
-    if (_cachedUserType != null) return _cachedUserType;
+    if (_cachedUserType != null) {
+      return _UserState(_cachedUserType!, _cachedUserOnboardingCompleted);
+    }
 
     final docRef =
         FirebaseFirestore.instance.collection('users').doc(user.uid);
 
-    // 1) Cache primero — offline-friendly.
+    // 1) Cache first — offline-friendly.
     try {
       final cached =
           await docRef.get(const GetOptions(source: Source.cache));
       if (cached.exists) {
-        _cachedUserType = cached.data()?['userType'] as String? ?? 'patient';
-        return _cachedUserType;
+        final data = cached.data() ?? const <String, dynamic>{};
+        _cachedUserType = (data['userType'] as String?) ?? 'patient';
+        _cachedUserOnboardingCompleted =
+            data['onboardingCompleted'] as bool? ?? false;
+        return _UserState(_cachedUserType!, _cachedUserOnboardingCompleted);
       }
     } catch (_) {
-      // Cache miss en primer arranque es normal — caemos al servidor.
+      // Cache miss on first launch — fall through.
     }
 
-    // 2) Servidor con timeout para no bloquear el redirect indefinidamente.
+    // 2) Server, with timeout to avoid wedging the redirect.
     try {
       final doc = await docRef
           .get(const GetOptions(source: Source.server))
           .timeout(const Duration(seconds: 6));
       if (doc.exists) {
-        _cachedUserType = doc.data()?['userType'] as String? ?? 'patient';
-        return _cachedUserType;
+        final data = doc.data() ?? const <String, dynamic>{};
+        _cachedUserType = (data['userType'] as String?) ?? 'patient';
+        _cachedUserOnboardingCompleted =
+            data['onboardingCompleted'] as bool? ?? false;
+        return _UserState(_cachedUserType!, _cachedUserOnboardingCompleted);
       }
     } catch (_) {
-      // Sin red o timeout — usamos default sin bloquear navegación.
+      // Offline / timeout — return a permissive default so the user isn't
+      // bounced. The next navigation will retry.
     }
-    return 'patient';
+    return const _UserState('patient', null);
   }
 
-  // Limpiar cache al cerrar sesión
-  static void clearUserTypeCache() {
+  /// Clears all caches that depend on the signed-in user. Call from every
+  /// logout path. The `goToLogin()` extension already invokes this.
+  static void clearAuthCache() {
     _cachedUserType = null;
     _cachedUserOnboardingCompleted = null;
   }
 
-  /// Alias for [clearUserTypeCache] used by new sign-out paths. Both names
-  /// clear the same fields — this exists so callers reading the new code
-  /// don't have to know the historical name.
-  static void clearAuthCache() => clearUserTypeCache();
+  /// Backwards-compatible alias — old call sites still call this. Both
+  /// names clear the same fields.
+  static void clearUserTypeCache() => clearAuthCache();
 
-  // ─────────── Per-user onboarding cache ───────────
-  // Populated by [getUserOnboardingCompleted] (added in Task 7) and
-  // bumped to true via [markUserOnboardingCompleted] when the role-specific
-  // onboarding screen finishes. Distinct from [_cachedOnboardingDone] which
-  // is the app-intro carousel flag.
-  // ignore: unused_field
-  static bool? _cachedUserOnboardingCompleted;
+  /// Reads (and caches) whether the app-intro carousel has been completed.
+  static Future<bool> isOnboardingCompleted() async {
+    if (_cachedAppIntroDone != null) return _cachedAppIntroDone!;
+    final prefs = await SharedPreferences.getInstance();
+    _cachedAppIntroDone = prefs.getBool(onboardingCompletedKey) ?? false;
+    return _cachedAppIntroDone!;
+  }
 
-  /// Call after finishing the per-role onboarding screen so the next
-  /// redirect doesn't bounce the user back to it before Firestore finishes
-  /// propagating the write.
+  /// Call after finishing the app-intro carousel.
+  static void markOnboardingCompleted() {
+    _cachedAppIntroDone = true;
+  }
+
+  /// Call after finishing the per-role onboarding screen (therapist or
+  /// patient). Keeps the cache in sync with the Firestore write so the
+  /// next redirect doesn't bounce the user back.
   static void markUserOnboardingCompleted() {
     _cachedUserOnboardingCompleted = true;
-  }
-
-  /// Lee (y cachea) el flag de onboarding desde SharedPreferences.
-  static Future<bool> isOnboardingCompleted() async {
-    if (_cachedOnboardingDone != null) return _cachedOnboardingDone!;
-    final prefs = await SharedPreferences.getInstance();
-    _cachedOnboardingDone = prefs.getBool(onboardingCompletedKey) ?? false;
-    return _cachedOnboardingDone!;
-  }
-
-  /// Llamar tras finalizar el onboarding para que el cache refleje el
-  /// nuevo estado sin tener que volver a leer SharedPreferences.
-  static void markOnboardingCompleted() {
-    _cachedOnboardingDone = true;
   }
   
   static final GoRouter router = GoRouter(
@@ -133,52 +163,42 @@ class AppRouter {
     debugLogDiagnostics: true,
     observers: [AnalyticsService().observer],
     
-    // Redirect para autenticación + onboarding
+    // Redirect para autenticación + onboarding.
+    //
+    // The decision logic lives in [computeRedirect] (a pure function in
+    // redirect_logic.dart) — this callback only gathers state.
     redirect: (context, state) async {
-      final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-      final loc = state.matchedLocation;
-      final isOnboardingRoute = loc == '/onboarding';
-      final isAuthRoute = loc == '/login' ||
-                          loc == '/register' ||
-                          loc == '/forgot-password' ||
-                          loc == '/';
+      final user = FirebaseAuth.instance.currentUser;
+      final isLoggedIn = user != null;
+      final emailVerified = user?.emailVerified ?? false;
 
-      // Onboarding gate: aplica solo a usuarios sin sesión iniciada.
-      // Usuarios autenticados nunca ven onboarding.
-      if (!isLoggedIn) {
-        final onboardingDone = await isOnboardingCompleted();
-        if (!onboardingDone && !isOnboardingRoute) {
-          return '/onboarding';
-        }
-        if (onboardingDone && isOnboardingRoute) {
-          return '/login';
-        }
+      String? userType;
+      bool? onboardingCompleted;
+      if (isLoggedIn) {
+        final userState = await _loadUserState();
+        userType = userState?.userType;
+        onboardingCompleted = userState?.onboardingCompleted;
       }
 
-      // Si no está logueado y no está en una ruta de auth/onboarding, redirigir a login
-      if (!isLoggedIn && !isAuthRoute && !isOnboardingRoute) {
-        return '/login';
-      }
+      final appIntroDone = await isOnboardingCompleted();
 
-      // Si está logueado y está en la ruta inicial, login u onboarding
-      if (isLoggedIn && (loc == '/' || loc == '/login' || loc == '/onboarding')) {
-        final userType = await getUserType();
-        return userType == 'therapist' ? '/therapist' : '/main';
-      }
-
-      return null;
+      return computeRedirect(RouterInputs(
+        currentPath: state.matchedLocation,
+        isLoggedIn: isLoggedIn,
+        emailVerified: emailVerified,
+        userType: userType,
+        onboardingCompleted: onboardingCompleted,
+        appIntroDone: appIntroDone,
+      ));
     },
     
     routes: [
       // ============ AUTH ROUTES ============
       GoRoute(
         path: '/',
-        redirect: (context, state) async {
-          final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-          if (!isLoggedIn) return '/login';
-          final userType = await getUserType();
-          return userType == 'therapist' ? '/therapist' : '/main';
-        },
+        // Global `redirect:` above handles all auth + onboarding routing —
+        // this exists only so '/' is a valid initial location.
+        redirect: (_, _) => null,
       ),
       
       GoRoute(
@@ -208,7 +228,28 @@ class AppRouter {
         pageBuilder: (context, state) =>
             TransitionHelper.fade(child: const OnboardingScreen()),
       ),
-      
+
+      GoRoute(
+        path: '/verify-email',
+        name: 'verifyEmail',
+        pageBuilder: (context, state) =>
+            TransitionHelper.fade(child: const VerifyEmailScreen()),
+      ),
+
+      GoRoute(
+        path: '/therapist/onboarding',
+        name: 'therapistOnboarding',
+        pageBuilder: (context, state) =>
+            TransitionHelper.fade(child: const TherapistOnboardingScreen()),
+      ),
+
+      GoRoute(
+        path: '/patient/onboarding',
+        name: 'patientOnboarding',
+        pageBuilder: (context, state) =>
+            TransitionHelper.fade(child: const PatientOnboardingScreen()),
+      ),
+
       // ============ MAIN APP ROUTES (PATIENT) ============
       GoRoute(
         path: '/main',
@@ -535,4 +576,7 @@ extension GoRouterExtension on BuildContext {
   void goToMyRoutines() => go('/main/my-routines');
   void goToMyAppointments() => go('/main/my-appointments');
   void goToLicenseVerification() => go('/license-verification');
+  void goToVerifyEmail() => go('/verify-email');
+  void goToTherapistOnboarding() => go('/therapist/onboarding');
+  void goToPatientOnboarding() => go('/patient/onboarding');
 }
