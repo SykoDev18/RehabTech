@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -37,6 +38,11 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _licenseController = TextEditingController();
 
+  // Mirrors the speciality dropdown's effective value. Initialised from
+  // [license.speciality] (set during therapist onboarding) on first build so
+  // the user can submit without re-tapping the pre-filled dropdown — without
+  // that sync, [_submit] used to bail silently when [_speciality] was null
+  // even though the dropdown displayed a valid value.
   String? _speciality;
   bool _isLoading = false;
   LicenseVerificationResult? _result;
@@ -54,9 +60,21 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    // Form validation surfaces inline errors for the cédula field and the
+    // speciality dropdown — return early ONLY after Form has displayed them.
+    final formState = _formKey.currentState;
+    if (formState == null || !formState.validate()) return;
+
+    // [_speciality] is synced from [license.speciality] inside the
+    // StreamBuilder so the value is always consistent with the dropdown's
+    // displayed text — but defend against the unsynced case anyway.
     final speciality = _speciality;
-    if (speciality == null) return;
+    if (speciality == null || speciality.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona tu especialidad antes de continuar.')),
+      );
+      return;
+    }
 
     FocusScope.of(context).unfocus();
     setState(() {
@@ -64,16 +82,46 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
       _result = null;
     });
 
-    final result = await _service.verify(
-      licenseNumber: _licenseController.text.trim(),
-      speciality: speciality,
-    );
+    LicenseVerificationResult? result;
+    try {
+      result = await _service.verify(
+        licenseNumber: _licenseController.text.trim(),
+        speciality: speciality,
+      );
+    } catch (e, st) {
+      // The service is supposed to never throw, but if it does we MUST
+      // restore _isLoading so the user is not locked out of retrying.
+      if (kDebugMode) {
+        debugPrint('[LicenseVerificationScreen] verify threw: $e\n$st');
+      }
+      result = const LicenseVerificationError(
+        'Tuvimos un problema técnico. Verifica tu conexión e intenta de nuevo.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _result = result;
+        });
+      }
+    }
 
     if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      _result = result;
-    });
+
+    // Single SnackBar summarising the outcome. The result card below the
+    // form gives the full detail; the SnackBar is the immediate signal.
+    final messenger = ScaffoldMessenger.of(context);
+    final (msg, bg) = switch (result) {
+      LicenseVerified() => ('✓ Cédula verificada correctamente', const Color(0xFF22C55E)),
+      LicenseNotFound(:final message) => (message, const Color(0xFFEF4444)),
+      LicenseManualReview(:final message) => (message, const Color(0xFFF59E0B)),
+      LicenseRateLimited(:final message) => (message, const Color(0xFFEF4444)),
+      LicenseInvalidInput(:final message) => (message, const Color(0xFFEF4444)),
+      LicenseVerificationError(:final message) => (message, const Color(0xFFEF4444)),
+    };
+    messenger.showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: bg),
+    );
   }
 
   Future<void> _openSepSite() async {
@@ -105,6 +153,15 @@ class _LicenseVerificationScreenState extends State<LicenseVerificationScreen> {
         stream: _service.watchLicense(user.uid),
         builder: (context, snapshot) {
           final license = snapshot.data ?? const TherapistLicense();
+          // Adopt the onboarding-saved speciality as the local choice on
+          // first stream emission. Without this the dropdown displays the
+          // value (via [initialValue]) but the screen-state copy stays
+          // null — and [_submit] used to bail silently in exactly that
+          // gap. Idempotent: only fires while [_speciality] is still null.
+          if (_speciality == null &&
+              (license.speciality?.isNotEmpty ?? false)) {
+            _speciality = license.speciality;
+          }
           return SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),

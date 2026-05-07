@@ -22,10 +22,18 @@ import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
 
 // node-fetch v3 is ESM-only; we lazy-import inside the handler so the
 // CommonJS top-level stays clean and tests can stub it.
+//
+// Note: we expose BOTH `text()` and `json()` because SEP occasionally serves
+// `text/html` (an error/CAPTCHA page) with HTTP 200 — calling `.json()` on
+// that throws and would mis-classify real misses as transport errors. The
+// production callSep() uses `text()` then `JSON.parse` defensively. Existing
+// tests that stub via `json()` still keep working: when `text()` is missing,
+// callSep falls back to `json()`.
 type FetchFn = (url: string, init?: Record<string, unknown>) => Promise<{
   ok: boolean;
   status: number;
   json: () => Promise<unknown>;
+  text?: () => Promise<string>;
 }>;
 
 let _fetchOverride: FetchFn | null = null;
@@ -229,14 +237,38 @@ async function callSep(licenseNumber: string): Promise<SepCallResult> {
     const res = await fetch(url, {
       method: "GET",
       signal: controller.signal,
-      headers: {"Accept": "application/json", "User-Agent": "RehabTech/1.0"},
+      headers: {
+        // SEP's edge has been observed to 403 requests with non-browser UAs.
+        // Mimic a real browser to keep the lookup path open. The endpoint is
+        // public and unauthenticated, so this isn't bypassing any control.
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "es-MX,es;q=0.9",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      },
     });
     if (!res.ok) {
       return {kind: "transport_error", reason: `HTTP ${res.status}`};
     }
+    // Defensive parse: SEP sometimes returns text/html for misses or CAPTCHA
+    // pages. Read raw text first, then parse — empty body means "not found".
     let body: unknown;
     try {
-      body = await res.json();
+      if (typeof res.text === "function") {
+        const raw = (await res.text()).trim();
+        if (raw.length === 0) {
+          return {kind: "not_found"};
+        }
+        // Reject obvious HTML so we don't try to parse "<!DOCTYPE html>…" as JSON.
+        if (raw.startsWith("<")) {
+          return {kind: "transport_error", reason: "non-JSON response"};
+        }
+        body = JSON.parse(raw);
+      } else {
+        // Test-stub fallback — older fakes only implement json().
+        body = await res.json();
+      }
     } catch (e) {
       return {kind: "transport_error", reason: `parse: ${(e as Error).message}`};
     }

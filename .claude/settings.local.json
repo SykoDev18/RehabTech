@@ -25,7 +25,8 @@
       "Bash(git commit -m 'fix\\(banner\\): show TherapistUnverifiedBanner for rejected status as well *)",
       "Bash(git commit -m 'feat\\(router\\): wire emailVerified gate, per-role onboarding gate, and new routes *)",
       "Bash(git commit -m 'feat\\(register\\): route to /verify-email, add therapist info banner, write licenseStatus default *)",
-      "Bash(git commit -m 'feat\\(login\\): reload user post-auth, delegate routing to GoRouter redirect, share error mapper *)"
+      "Bash(git commit -m 'feat\\(login\\): reload user post-auth, delegate routing to GoRouter redirect, share error mapper *)",
+      "WebFetch(domain:https://cedulaprofesional.sep.gob.mx/)"
     ]
   }
 }
