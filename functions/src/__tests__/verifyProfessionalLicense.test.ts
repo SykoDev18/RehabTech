@@ -102,6 +102,7 @@ jest.mock("firebase-functions/v2", () => ({
 // ─────────────────────────────────────────────────────────────────────
 
 import {
+  __resetTokenCacheForTesting,
   __setFetchForTesting,
   isPhysiotherapyTitulo,
   isValidLicenseFormat,
@@ -113,10 +114,12 @@ import {
 beforeEach(() => {
   for (const k of Object.keys(mockDocStore)) delete mockDocStore[k];
   __setFetchForTesting(null);
+  __resetTokenCacheForTesting();
 });
 
 afterAll(() => {
   __setFetchForTesting(null);
+  __resetTokenCacheForTesting();
 });
 
 const UID = "therapist_uid";
@@ -130,52 +133,91 @@ const OK_PAYLOAD = {
   fechaExpedicion: "2018-06-15",
 };
 
-const stubSepOk = (payload: Record<string, unknown>) =>
-  __setFetchForTesting(
-    async () =>
-      ({
+// Every helper here routes the auth/token request to a canned JWT-shaped
+// response and forwards the byDetalle request to the per-test handler. The
+// production `callSep()` makes TWO HTTP calls (token + lookup); a single-
+// purpose stub would make every test fail at the auth step.
+const TOKEN_RESPONSE = {access_token: "test-token"} as const;
+const isTokenUrl = (url: string) => url.includes("/auth/token");
+
+const stubSepOk = (payload: unknown) =>
+  __setFetchForTesting(async (url: string) => {
+    if (isTokenUrl(url)) {
+      return {
         ok: true,
         status: 200,
-        json: async () => payload,
-      } as never)
-  );
+        json: async () => TOKEN_RESPONSE,
+      } as never;
+    }
+    return {ok: true, status: 200, json: async () => payload} as never;
+  });
 
 const stubSepNotFound = () =>
-  __setFetchForTesting(
-    async () =>
-      ({
+  __setFetchForTesting(async (url: string) => {
+    if (isTokenUrl(url)) {
+      return {
         ok: true,
         status: 200,
-        json: async () => null,
-      } as never)
-  );
+        json: async () => TOKEN_RESPONSE,
+      } as never;
+    }
+    return {ok: true, status: 200, json: async () => null} as never;
+  });
 
 const stubSepHttpError = (status: number) =>
-  __setFetchForTesting(
-    async () =>
-      ({
-        ok: false,
-        status,
-        json: async () => ({}),
-      } as never)
-  );
+  __setFetchForTesting(async (url: string) => {
+    if (isTokenUrl(url)) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => TOKEN_RESPONSE,
+      } as never;
+    }
+    return {ok: false, status, json: async () => ({})} as never;
+  });
 
 const stubSepThrow = (msg: string) =>
-  __setFetchForTesting(async () => {
+  __setFetchForTesting(async (url: string) => {
+    if (isTokenUrl(url)) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => TOKEN_RESPONSE,
+      } as never;
+    }
     throw new Error(msg);
   });
 
 const stubSepBadJson = () =>
-  __setFetchForTesting(
-    async () =>
-      ({
+  __setFetchForTesting(async (url: string) => {
+    if (isTokenUrl(url)) {
+      return {
         ok: true,
         status: 200,
-        json: async () => {
-          throw new SyntaxError("Unexpected token < in JSON");
-        },
-      } as never)
-  );
+        json: async () => TOKEN_RESPONSE,
+      } as never;
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("Unexpected token < in JSON");
+      },
+    } as never;
+  });
+
+/** Fails the auth/token step. Used to lock in the auth-failure path. */
+const stubSepTokenError = (status: number) =>
+  __setFetchForTesting(async (url: string) => {
+    if (isTokenUrl(url)) {
+      return {ok: false, status, json: async () => ({})} as never;
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => OK_PAYLOAD,
+    } as never;
+  });
 
 // ─────────────────────────────────────────────────────────────────────
 // Pure helper tests
@@ -228,7 +270,10 @@ describe("parseSepResponse", () => {
   test("empty object → not found", () => {
     expect(parseSepResponse({})).toBeNull();
   });
-  test("populated object → parsed", () => {
+  test("empty array (current SEP shape for not-found) → not found", () => {
+    expect(parseSepResponse([])).toBeNull();
+  });
+  test("populated object (legacy shape) → parsed", () => {
     const out = parseSepResponse(OK_PAYLOAD);
     expect(out?.nombre).toBe("ANA");
     expect(out?.titulo).toBe("Fisioterapia");
@@ -236,6 +281,34 @@ describe("parseSepResponse", () => {
   test("items[0] wrapper → parsed", () => {
     const out = parseSepResponse({items: [OK_PAYLOAD]});
     expect(out?.nombre).toBe("ANA");
+  });
+  test("current SEP API shape (top-level array, new field names) → parsed", () => {
+    // Real shape captured from the production endpoint with cédula 13110977.
+    const live = [
+      {
+        cedula: "13110977",
+        tipo: "C1",
+        anioRegistro: "2022",
+        fechaExpedicion: "2022-11-02",
+        nombre: "IRVING DENILSON",
+        primerApellido: "PEÑA",
+        segundoApellido: "GONZALEZ",
+        profesion: "LICENCIATURA EN FISIOTERAPIA",
+        institucion: "UNIVERSIDAD TECNOLÓGICA DE MÉXICO",
+        fechaTitulacion: "2022-03-07",
+        carrera: null,
+      },
+    ];
+    const out = parseSepResponse(live);
+    expect(out?.nombre).toBe("IRVING DENILSON");
+    expect(out?.paterno).toBe("PEÑA");
+    expect(out?.materno).toBe("GONZALEZ");
+    expect(out?.titulo).toBe("LICENCIATURA EN FISIOTERAPIA");
+    expect(out?.institucion).toBe("UNIVERSIDAD TECNOLÓGICA DE MÉXICO");
+    expect(out?.fechaExpedicion).toBe("2022-11-02");
+  });
+  test("current SEP API: array with empty-nombre item → not found", () => {
+    expect(parseSepResponse([{nombre: ""}])).toBeNull();
   });
 });
 
@@ -321,7 +394,14 @@ describe("runVerification — cache behaviour", () => {
       licenseData: OK_PAYLOAD,
     };
     let sepCalled = false;
-    __setFetchForTesting(async () => {
+    __setFetchForTesting(async (url: string) => {
+      if (isTokenUrl(url)) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => TOKEN_RESPONSE,
+        } as never;
+      }
       sepCalled = true;
       return {ok: true, status: 200, json: async () => OK_PAYLOAD} as never;
     });
@@ -343,7 +423,14 @@ describe("runVerification — cache behaviour", () => {
       licenseData: OK_PAYLOAD,
     };
     let sepCalled = false;
-    __setFetchForTesting(async () => {
+    __setFetchForTesting(async (url: string) => {
+      if (isTokenUrl(url)) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => TOKEN_RESPONSE,
+        } as never;
+      }
       sepCalled = true;
       return {ok: true, status: 200, json: async () => OK_PAYLOAD} as never;
     });
@@ -404,5 +491,58 @@ describe("runVerification — SEP error handling", () => {
     );
     expect(res.status).toBe("not_found");
     expect(mockDocStore[`users/${UID}`].licenseStatus).toBe("rejected");
+  });
+
+  test("SEP empty array (current API not-found) → not_found + Firestore rejected", async () => {
+    stubSepOk([]); // top-level empty array — new API miss shape
+    const res = await runVerification(
+      {uid: UID, now: NOW, userType: "therapist"},
+      {licenseNumber: "12345678", speciality: "Fisioterapia"}
+    );
+    expect(res.status).toBe("not_found");
+    expect(mockDocStore[`users/${UID}`].licenseStatus).toBe("rejected");
+  });
+
+  test("auth/token endpoint failure → manual_review (downgrades)", async () => {
+    stubSepTokenError(503);
+    const res = await runVerification(
+      {uid: UID, now: NOW, userType: "therapist"},
+      {licenseNumber: "12345678", speciality: "Fisioterapia"}
+    );
+    expect(res.status).toBe("manual_review");
+    expect(mockDocStore[`users/${UID}`].licenseStatus).toBe("manual_review");
+  });
+});
+
+describe("runVerification — happy path with current SEP shape", () => {
+  test("real-world array response → verified + Firestore reflects data", async () => {
+    // Same fixture used in parseSepResponse test, reused at the orchestration
+    // boundary so a regression in either parsing OR the new POST/auth flow
+    // shows up here.
+    stubSepOk([
+      {
+        cedula: "13110977",
+        nombre: "IRVING DENILSON",
+        primerApellido: "PEÑA",
+        segundoApellido: "GONZALEZ",
+        profesion: "LICENCIATURA EN FISIOTERAPIA",
+        institucion: "UNIVERSIDAD TECNOLÓGICA DE MÉXICO",
+        fechaExpedicion: "2022-11-02",
+        fechaTitulacion: "2022-03-07",
+      },
+    ]);
+    const res = await runVerification(
+      {uid: UID, now: NOW, userType: "therapist"},
+      {licenseNumber: "13110977", speciality: "Fisioterapia"}
+    );
+    expect(res.status).toBe("verified");
+    expect(res.licenseData?.nombre).toBe("IRVING DENILSON");
+    expect(res.licenseData?.paterno).toBe("PEÑA");
+    expect(res.licenseData?.titulo).toBe("LICENCIATURA EN FISIOTERAPIA");
+    const stored = mockDocStore[`users/${UID}`];
+    expect(stored.licenseStatus).toBe("verified");
+    expect((stored.licenseData as Record<string, string>).materno).toBe(
+      "GONZALEZ"
+    );
   });
 });

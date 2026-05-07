@@ -85,10 +85,30 @@ interface VerifyLicenseResponse {
 // Constants
 // ─────────────────────────────────────────────────────────────────────
 
-const SEP_RNP_ENDPOINT =
-  "https://www.cedulaprofesional.sep.gob.mx/cedula/consultaJson.action";
+// In 2025-2026 SEP retired the legacy `consultaJson.action` endpoint and
+// replaced it with an Angular-fronted REST API at /api. The new flow is:
+//   1) GET  /api/auth/token  with X-Client-Id + X-API-Key  → JWT
+//   2) POST /api/solr/profesionista/consultar/byDetalle    → array
+// Empty array == not found; single-item array == hit. The X-Recaptcha-Token
+// header the browser app sends is NOT enforced server-side as of writing,
+// so we omit it. Should that change, we degrade to manual_review the same
+// way every other transport failure already does.
+//
+// The client-id/api-key live in SEP's public /assets/config.json (anyone
+// loading https://cedulaprofesional.sep.gob.mx can read them) — this is a
+// public lookup API, hardcoding here is fine. If SEP rotates them, the
+// function returns transport_error → manual_review until we redeploy.
+const SEP_API_BASE = "https://cedulaprofesional.sep.gob.mx/api";
+const SEP_TOKEN_PATH = "/auth/token";
+const SEP_LOOKUP_PATH = "/solr/profesionista/consultar/byDetalle";
+const SEP_CLIENT_ID = "rnp-angular-app-prod";
+const SEP_API_KEY = "65da8s675f8s75fda675s8d76as87d5as675da";
 
-const SEP_TIMEOUT_MS = 10_000;
+const SEP_TIMEOUT_MS = 15_000;
+// Tokens issued by SEP's Keycloak realm have ridiculously long expiries
+// (~1 year as of 2026-05). Cap the cache at 50 min so a key rotation is
+// picked up within an hour without us having to re-deploy.
+const SEP_TOKEN_TTL_MS = 50 * 60 * 1000;
 
 const RATE_LIMIT_MAX = 3;
 const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h
@@ -125,35 +145,58 @@ export function isPhysiotherapyTitulo(titulo: string): boolean {
 }
 
 /**
- * Pulls a typed [SepLicenseData] out of the SEP response. SEP's JSON shape is
- * "best effort" — on a hit it returns the fields below, on a miss it returns
- * `null` or `{}` with empty strings. Treat anything without a populated
- * `nombre` as a miss.
+ * Pulls a typed [SepLicenseData] out of whatever SEP returned. We have to
+ * handle three real-world shapes here:
+ *
+ *  - The current SEP API (`/api/solr/.../byDetalle`) returns a TOP-LEVEL
+ *    ARRAY: `[]` for not-found, `[{...}]` for a hit. Field names are
+ *    `primerApellido` / `segundoApellido` / `profesion` /
+ *    `fechaExpedicion` / `fechaTitulacion`.
+ *  - The legacy `consultaJson.action` endpoint (now dead) used a plain
+ *    object with `paterno` / `materno` / `titulo`. Old test fixtures still
+ *    use this shape; tolerating it keeps the suite green.
+ *  - Some SEP variants wrap the hit in `{items: [{...}]}`. Kept for
+ *    forward compatibility — costs almost nothing.
+ *
+ * Anything without a populated `nombre` is treated as a miss.
  */
 export function parseSepResponse(body: unknown): SepLicenseData | null {
-  if (!body || typeof body !== "object") return null;
-  const o = body as Record<string, unknown>;
+  if (body === null || body === undefined) return null;
 
-  // SEP wraps the payload in an `items[0]` array on some endpoints.
-  let payload: Record<string, unknown> = o;
-  const items = o.items;
-  if (Array.isArray(items) && items.length > 0 && typeof items[0] === "object") {
-    payload = items[0] as Record<string, unknown>;
+  let payload: Record<string, unknown> | null = null;
+  if (Array.isArray(body)) {
+    if (body.length === 0) return null;
+    if (typeof body[0] === "object" && body[0] !== null) {
+      payload = body[0] as Record<string, unknown>;
+    }
+  } else if (typeof body === "object") {
+    const o = body as Record<string, unknown>;
+    if (Array.isArray(o.items) && o.items.length > 0 && typeof o.items[0] === "object") {
+      payload = o.items[0] as Record<string, unknown>;
+    } else {
+      payload = o;
+    }
   }
+  if (payload === null) return null;
 
   const nombre = String(payload.nombre ?? "").trim();
   if (nombre.length === 0) return null;
 
   return {
     nombre,
-    paterno: String(payload.paterno ?? "").trim(),
-    materno: String(payload.materno ?? "").trim(),
-    titulo: String(payload.titulo ?? payload.carrera ?? "").trim(),
+    paterno: String(payload.paterno ?? payload.primerApellido ?? "").trim(),
+    materno: String(payload.materno ?? payload.segundoApellido ?? "").trim(),
+    titulo: String(
+      payload.titulo ?? payload.profesion ?? payload.carrera ?? ""
+    ).trim(),
     institucion: String(
       payload.institucion ?? payload.idInstitucion ?? ""
     ).trim(),
     fechaExpedicion: String(
-      payload.fechaExpedicion ?? payload.fechaRegistro ?? ""
+      payload.fechaExpedicion ??
+        payload.fechaTitulacion ??
+        payload.fechaRegistro ??
+        ""
     ).trim(),
   };
 }
@@ -226,60 +269,169 @@ type SepCallResult =
   | {kind: "not_found"}
   | {kind: "transport_error"; reason: string};
 
-async function callSep(licenseNumber: string): Promise<SepCallResult> {
-  const fetch = await getFetch();
-  const url = `${SEP_RNP_ENDPOINT}?idCedula=${encodeURIComponent(licenseNumber)}`;
+// Module-cached SEP bearer token. Refreshed lazily once the cached entry
+// passes [SEP_TOKEN_TTL_MS] and busted on a 401/403 from the lookup. Lives
+// for the lifetime of the function instance, which is fine — Cloud Functions
+// kill cold-started instances after some idle period anyway.
+let _cachedSepToken: {token: string; expiresAt: number} | null = null;
 
-  // node-fetch v3 supports AbortSignal directly.
+/** Test-only — reset the token cache so each test starts fresh. */
+export function __resetTokenCacheForTesting(): void {
+  _cachedSepToken = null;
+}
+
+async function readBodyAsText(res: {
+  text?: () => Promise<string>;
+  json: () => Promise<unknown>;
+}): Promise<string> {
+  if (typeof res.text === "function") return (await res.text()).trim();
+  // Older test fakes only implement json(); round-trip back to a string so
+  // the caller can apply the same JSON.parse path uniformly.
+  const j = await res.json();
+  return j === undefined || j === null ? "" : JSON.stringify(j);
+}
+
+async function fetchSepToken(fetchFn: FetchFn): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SEP_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    const res = await fetchFn(`${SEP_API_BASE}${SEP_TOKEN_PATH}`, {
       method: "GET",
       signal: controller.signal,
       headers: {
-        // SEP's edge has been observed to 403 requests with non-browser UAs.
-        // Mimic a real browser to keep the lookup path open. The endpoint is
-        // public and unauthenticated, so this isn't bypassing any control.
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "es-MX,es;q=0.9",
+        "X-Client-Id": SEP_CLIENT_ID,
+        "X-API-Key": SEP_API_KEY,
+        "Accept": "application/json",
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
           "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
       },
     });
     if (!res.ok) {
-      return {kind: "transport_error", reason: `HTTP ${res.status}`};
+      throw new Error(`token endpoint HTTP ${res.status}`);
     }
-    // Defensive parse: SEP sometimes returns text/html for misses or CAPTCHA
-    // pages. Read raw text first, then parse — empty body means "not found".
-    let body: unknown;
-    try {
-      if (typeof res.text === "function") {
-        const raw = (await res.text()).trim();
-        if (raw.length === 0) {
-          return {kind: "not_found"};
-        }
-        // Reject obvious HTML so we don't try to parse "<!DOCTYPE html>…" as JSON.
-        if (raw.startsWith("<")) {
-          return {kind: "transport_error", reason: "non-JSON response"};
-        }
-        body = JSON.parse(raw);
-      } else {
-        // Test-stub fallback — older fakes only implement json().
-        body = await res.json();
-      }
-    } catch (e) {
-      return {kind: "transport_error", reason: `parse: ${(e as Error).message}`};
+    const raw = await readBodyAsText(res);
+    if (raw.length === 0) throw new Error("token endpoint returned empty body");
+    if (raw.startsWith("<")) {
+      throw new Error("token endpoint returned non-JSON (HTML)");
     }
-    const parsed = parseSepResponse(body);
-    if (parsed === null) return {kind: "not_found"};
-    return {kind: "ok", data: parsed};
-  } catch (e) {
-    return {kind: "transport_error", reason: (e as Error).message};
+    const body = JSON.parse(raw) as {access_token?: unknown};
+    const token = body.access_token;
+    if (typeof token !== "string" || token.length === 0) {
+      throw new Error("token endpoint returned no access_token");
+    }
+    return token;
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function getSepToken(fetchFn: FetchFn, forceFresh = false): Promise<string> {
+  const now = Date.now();
+  if (!forceFresh && _cachedSepToken && _cachedSepToken.expiresAt > now) {
+    return _cachedSepToken.token;
+  }
+  const token = await fetchSepToken(fetchFn);
+  _cachedSepToken = {token, expiresAt: now + SEP_TOKEN_TTL_MS};
+  return token;
+}
+
+async function postLookup(
+  fetchFn: FetchFn,
+  licenseNumber: string,
+  token: string,
+): Promise<{status: number; body: unknown; error?: string}> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SEP_TIMEOUT_MS);
+  try {
+    const res = await fetchFn(`${SEP_API_BASE}${SEP_LOOKUP_PATH}`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        // Origin/Referer/User-Agent mimic the SPA so the call doesn't look
+        // like a bare scraper to whatever WAF SEP runs in front of /api.
+        "Origin": "https://cedulaprofesional.sep.gob.mx",
+        "Referer": "https://cedulaprofesional.sep.gob.mx/",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      },
+      body: JSON.stringify({numCedula: licenseNumber}),
+    });
+    if (res.status === 401 || res.status === 403) {
+      return {status: res.status, body: null, error: `HTTP ${res.status}`};
+    }
+    if (!res.ok) {
+      return {status: res.status, body: null, error: `HTTP ${res.status}`};
+    }
+    const raw = await readBodyAsText(res);
+    if (raw.length === 0) return {status: res.status, body: null};
+    if (raw.startsWith("<")) {
+      return {
+        status: res.status,
+        body: null,
+        error: "non-JSON response (HTML)",
+      };
+    }
+    try {
+      return {status: res.status, body: JSON.parse(raw)};
+    } catch (e) {
+      return {
+        status: res.status,
+        body: null,
+        error: `parse: ${(e as Error).message}`,
+      };
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function callSep(licenseNumber: string): Promise<SepCallResult> {
+  const fetchFn = await getFetch();
+
+  // Two-attempt loop: if the cached token is rejected, bust it and retry
+  // ONCE with a freshly-issued token. Any other failure short-circuits to
+  // transport_error so the caller can downgrade to manual_review.
+  let lastError: string | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let token: string;
+    try {
+      token = await getSepToken(fetchFn, attempt > 0);
+    } catch (e) {
+      return {
+        kind: "transport_error",
+        reason: `auth: ${(e as Error).message}`,
+      };
+    }
+
+    let result: {status: number; body: unknown; error?: string};
+    try {
+      result = await postLookup(fetchFn, licenseNumber, token);
+    } catch (e) {
+      return {kind: "transport_error", reason: (e as Error).message};
+    }
+
+    if (result.status === 401 || result.status === 403) {
+      _cachedSepToken = null; // bust and retry
+      lastError = result.error ?? `HTTP ${result.status}`;
+      continue;
+    }
+    if (result.error !== undefined) {
+      return {kind: "transport_error", reason: result.error};
+    }
+    const parsed = parseSepResponse(result.body);
+    if (parsed === null) return {kind: "not_found"};
+    return {kind: "ok", data: parsed};
+  }
+
+  return {
+    kind: "transport_error",
+    reason: lastError ?? "auth retry exhausted",
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────
